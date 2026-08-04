@@ -4,7 +4,7 @@
     <section class="hero">
         <div class="eyebrow">Hosting without the server work</div>
         <h1>Put your website online in a few simple steps.</h1>
-        <p>Create an account and a website project now. ZIP upload and one-click deployment arrive in the next phases.</p>
+        <p>Create an account, make a website project, and upload your files as a ZIP. One-click deployment arrives in the next phase.</p>
         <div class="actions"><a class="button" href="{{ route('register') }}">Choose a plan</a><a class="button secondary" href="{{ route('login') }}">Log in</a></div>
     </section>
     <section style="margin-top:48px"><div class="eyebrow">Plans</div><h2>Start small and grow when you need to.</h2>

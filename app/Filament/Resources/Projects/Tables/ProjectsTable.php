@@ -27,6 +27,17 @@ class ProjectsTable
                 TextColumn::make('status')
                     ->badge()
                     ->searchable(),
+                TextColumn::make('file_count')
+                    ->numeric()
+                    ->sortable(),
+                TextColumn::make('storage_bytes')
+                    ->label('Storage')
+                    ->formatStateUsing(fn (int $state): string => number_format($state / 1_048_576, 2).' MB')
+                    ->sortable(),
+                TextColumn::make('files_updated_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

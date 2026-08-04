@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Plans\Schemas;
 
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
@@ -51,6 +51,18 @@ class PlanForm
                     ->required()
                     ->numeric()
                     ->minValue(1),
+                TextInput::make('max_extracted_mb')
+                    ->label('Maximum extracted size (MB)')
+                    ->required()
+                    ->numeric()
+                    ->minValue(1)
+                    ->default(100),
+                TextInput::make('max_file_count')
+                    ->label('Maximum file count')
+                    ->required()
+                    ->numeric()
+                    ->minValue(1)
+                    ->default(1000),
                 Toggle::make('is_active')
                     ->default(true)
                     ->required(),

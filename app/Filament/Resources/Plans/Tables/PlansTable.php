@@ -38,6 +38,15 @@ class PlansTable
                 TextColumn::make('max_upload_mb')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('max_extracted_mb')
+                    ->label('Extracted MB')
+                    ->numeric()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('max_file_count')
+                    ->numeric()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('sort_order')

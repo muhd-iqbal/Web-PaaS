@@ -19,6 +19,14 @@ class ProjectInfolist
                     ->badge(),
                 TextEntry::make('status')
                     ->badge(),
+                TextEntry::make('file_count')
+                    ->numeric(),
+                TextEntry::make('storage_bytes')
+                    ->label('Storage')
+                    ->formatStateUsing(fn (int $state): string => number_format($state / 1_048_576, 2).' MB'),
+                TextEntry::make('files_updated_at')
+                    ->dateTime()
+                    ->placeholder('-'),
                 TextEntry::make('created_at')
                     ->dateTime()
                     ->placeholder('-'),

@@ -15,7 +15,7 @@ class DashboardController extends Controller
         return view('dashboard', [
             'projects' => $request->user()->projects()->latest()->limit(5)->get(),
             'projectCount' => $request->user()->projects()->count(),
-            'draftCount' => $request->user()->projects()->where('status', 'draft')->count(),
+            'projectsWithFiles' => $request->user()->projects()->where('file_count', '>', 0)->count(),
         ]);
     }
 }

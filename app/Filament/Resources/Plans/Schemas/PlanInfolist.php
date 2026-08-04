@@ -29,6 +29,12 @@ class PlanInfolist
                     ->numeric(),
                 TextEntry::make('max_upload_mb')
                     ->numeric(),
+                TextEntry::make('max_extracted_mb')
+                    ->label('Maximum extracted size (MB)')
+                    ->numeric(),
+                TextEntry::make('max_file_count')
+                    ->label('Maximum file count')
+                    ->numeric(),
                 IconEntry::make('is_active')
                     ->boolean(),
                 TextEntry::make('sort_order')

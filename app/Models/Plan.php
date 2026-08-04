@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\PlanFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Plan extends Model
 {
-    /** @use HasFactory<\Database\Factories\PlanFactory> */
+    /** @use HasFactory<PlanFactory> */
     use HasFactory;
 
     protected $fillable = [
@@ -21,6 +22,8 @@ class Plan extends Model
         'bandwidth_mb',
         'database_mb',
         'max_upload_mb',
+        'max_extracted_mb',
+        'max_file_count',
         'is_active',
         'sort_order',
     ];

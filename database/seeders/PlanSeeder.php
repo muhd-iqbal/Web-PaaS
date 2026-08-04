@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Plan;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class PlanSeeder extends Seeder
@@ -19,6 +18,7 @@ class PlanSeeder extends Seeder
                 'description' => 'Try simple website hosting before choosing a paid plan.',
                 'monthly_price' => 0, 'website_limit' => 1, 'storage_mb' => 250,
                 'bandwidth_mb' => 2048, 'database_mb' => 0, 'max_upload_mb' => 25,
+                'max_extracted_mb' => 100, 'max_file_count' => 1000,
                 'sort_order' => 10,
             ],
             [
@@ -26,6 +26,7 @@ class PlanSeeder extends Seeder
                 'description' => 'Everything a student needs for assignments and small projects.',
                 'monthly_price' => 5, 'website_limit' => 1, 'storage_mb' => 2048,
                 'bandwidth_mb' => 20480, 'database_mb' => 200, 'max_upload_mb' => 100,
+                'max_extracted_mb' => 500, 'max_file_count' => 5000,
                 'sort_order' => 20,
             ],
             [
@@ -33,6 +34,7 @@ class PlanSeeder extends Seeder
                 'description' => 'Multiple sites and higher limits for active development.',
                 'monthly_price' => 15, 'website_limit' => 5, 'storage_mb' => 10240,
                 'bandwidth_mb' => 102400, 'database_mb' => 1024, 'max_upload_mb' => 250,
+                'max_extracted_mb' => 1024, 'max_file_count' => 15000,
                 'sort_order' => 30,
             ],
         ];

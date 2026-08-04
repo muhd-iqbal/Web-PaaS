@@ -12,7 +12,7 @@ enum ProjectStatus: string implements HasLabel
     public function label(): string
     {
         return match ($this) {
-            self::Draft => 'Ready for files',
+            self::Draft => 'Not deployed',
             self::Suspended => 'Suspended',
         };
     }

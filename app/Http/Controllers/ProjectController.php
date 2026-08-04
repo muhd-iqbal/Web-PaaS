@@ -36,7 +36,7 @@ class ProjectController extends Controller
     {
         $project = $request->user()->projects()->create($request->safe()->only(['name', 'slug', 'runtime']));
 
-        return redirect()->route('projects.show', $project)->with('status', 'Project created. It is ready for files in Phase 2.');
+        return redirect()->route('projects.show', $project)->with('status', 'Project created. Upload a ZIP when your website files are ready.');
     }
 
     /**
@@ -45,8 +45,16 @@ class ProjectController extends Controller
     public function show(Project $project): View
     {
         $this->authorize('view', $project);
+        $project->load([
+            'uploads' => fn ($query) => $query->latest()->limit(10),
+            'user.plan',
+        ]);
 
-        return view('projects.show', compact('project'));
+        return view('projects.show', [
+            'project' => $project,
+            'files' => $project->files()->orderBy('path')->paginate(50),
+            'accountStorageBytes' => (int) $project->user->projects()->sum('storage_bytes'),
+        ]);
     }
 
     /**

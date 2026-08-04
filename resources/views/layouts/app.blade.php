@@ -29,6 +29,7 @@
         label { display:block; font-weight:700; margin-bottom:6px; } input,select { width:100%; min-height:44px; padding:9px 11px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:var(--ink); font:inherit; }
         .field { margin-bottom:18px; } .form-card { max-width:620px; margin-inline:auto; } .error { color:var(--danger); font-size:.875rem; margin-top:5px; } .alert { border:1px solid #99f6e4; background:#f0fdfa; color:var(--success); padding:12px 16px; border-radius:9px; margin-bottom:22px; }
         .empty { padding:48px 24px; text-align:center; } ul.clean { list-style:none; padding:0; margin:18px 0 0; } ul.clean li { margin:8px 0; color:var(--muted); }
+        .meter { height:9px; overflow:hidden; border-radius:99px; background:#e2e8f0; margin:10px 0 6px; } .meter > span { display:block; height:100%; background:var(--blue); border-radius:inherit; }
         @media (max-width:760px) { .grid,.grid.two { grid-template-columns:1fr; } .nav-inner,.page-head { align-items:flex-start; flex-direction:column; padding:15px 0; } .nav-links { flex-wrap:wrap; } main { padding-top:30px; } .table-wrap { overflow-x:auto; } }
     </style>
 </head>

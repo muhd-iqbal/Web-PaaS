@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectFileController;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
 
@@ -23,5 +24,8 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::resource('projects', ProjectController::class);
+    Route::post('/projects/{project}/files', [ProjectFileController::class, 'store'])->name('projects.files.store');
+    Route::get('/projects/{project}/files/{projectFile}', [ProjectFileController::class, 'download'])->name('projects.files.download');
+    Route::delete('/projects/{project}/files/{projectFile}', [ProjectFileController::class, 'destroy'])->name('projects.files.destroy');
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 });
