@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ProjectRuntime;
+use App\Enums\ProjectStatus;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProjectController extends Controller
@@ -47,6 +49,7 @@ class ProjectController extends Controller
         $this->authorize('view', $project);
         $project->load([
             'uploads' => fn ($query) => $query->latest()->limit(10),
+            'deployments' => fn ($query) => $query->latest()->limit(20),
             'user.plan',
         ]);
 
@@ -72,7 +75,14 @@ class ProjectController extends Controller
      */
     public function update(UpdateProjectRequest $request, Project $project): RedirectResponse
     {
-        $project->update($request->safe()->only(['name', 'slug', 'runtime']));
+        $attributes = $request->safe()->only(['name', 'slug', 'runtime']);
+        $deploymentChanged = $project->slug !== $attributes['slug'] || $project->runtime->value !== $attributes['runtime'];
+
+        if ($deploymentChanged) {
+            $attributes['status'] = $project->statusAfterFileChange();
+        }
+
+        $project->update($attributes);
 
         return redirect()->route('projects.show', $project)->with('status', 'Project updated.');
     }
@@ -83,6 +93,11 @@ class ProjectController extends Controller
     public function destroy(Project $project): RedirectResponse
     {
         $this->authorize('delete', $project);
+
+        if ($project->status === ProjectStatus::Deploying) {
+            throw ValidationException::withMessages(['deployment' => 'Wait for the current deployment to finish before deleting this project.']);
+        }
+
         $project->delete();
 
         return redirect()->route('projects.index')->with('status', 'Project deleted.');

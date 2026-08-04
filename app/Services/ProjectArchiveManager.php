@@ -112,6 +112,7 @@ class ProjectArchiveManager
                 DB::transaction(function () use ($project, $file): void {
                     $file->delete();
                     $project->update([
+                        'status' => $project->statusAfterFileChange(),
                         'storage_bytes' => max(0, $project->storage_bytes - $file->size_bytes),
                         'file_count' => max(0, $project->file_count - 1),
                         'files_updated_at' => now(),
@@ -431,6 +432,7 @@ class ProjectArchiveManager
                 }
 
                 $project->update([
+                    'status' => $project->statusAfterFileChange(),
                     'storage_bytes' => $extractedSize,
                     'file_count' => count($files),
                     'files_updated_at' => now(),

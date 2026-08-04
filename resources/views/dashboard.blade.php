@@ -5,7 +5,7 @@
 <div class="grid" style="margin-bottom:28px">
     <div class="card"><div class="muted small">Your plan</div><div class="stat">{{ auth()->user()->plan?->name ?? 'No plan' }}</div><div class="muted small">{{ $projectCount }} of {{ auth()->user()->plan?->website_limit ?? 0 }} websites used</div></div>
     <div class="card"><div class="muted small">Websites</div><div class="stat">{{ $projectCount }}</div><div class="muted small">Total projects</div></div>
-    <div class="card"><div class="muted small">Files uploaded</div><div class="stat">{{ $projectsWithFiles }}</div><div class="muted small">Projects with validated website files</div></div>
+    <div class="card"><div class="muted small">Live websites</div><div class="stat">{{ $liveProjects }}</div><div class="muted small">Projects currently deployed</div></div>
 </div>
 <div class="card"><div class="page-head"><div><h2>Recent projects</h2><p class="muted">Your latest website projects.</p></div><a href="{{ route('projects.index') }}">View all</a></div>
     @if($projects->isEmpty())<div class="empty"><h3>No projects yet</h3><p class="muted">Create your first website project to get started.</p><a class="button" href="{{ route('projects.create') }}">Create website</a></div>

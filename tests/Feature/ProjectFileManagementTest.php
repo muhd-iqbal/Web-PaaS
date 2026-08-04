@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ProjectRuntime;
+use App\Enums\ProjectStatus;
 use App\Models\Plan;
 use App\Models\Project;
 use App\Models\User;
@@ -214,6 +215,35 @@ class ProjectFileManagementTest extends TestCase
         $this->actingAs($project->user)->delete(route('projects.destroy', $project));
 
         Storage::disk('project_files')->assertMissing($project->storageDirectory());
+    }
+
+    public function test_uploading_new_files_marks_a_live_project_for_redeployment(): void
+    {
+        $project = $this->project([
+            'status' => ProjectStatus::Active,
+            'container_name' => 'hosting-project-1',
+            'deployed_at' => now(),
+        ]);
+        $archive = $this->zip(['index.html' => '<!doctype html><title>Changed</title>']);
+
+        $this->actingAs($project->user)
+            ->post(route('projects.files.store', $project), ['archive' => $archive])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame(ProjectStatus::ChangesPending, $project->refresh()->status);
+    }
+
+    public function test_files_cannot_be_replaced_while_a_deployment_is_running(): void
+    {
+        $project = $this->project(['status' => ProjectStatus::Deploying]);
+        $archive = $this->zip(['index.html' => '<!doctype html><title>Too soon</title>']);
+
+        $this->actingAs($project->user)
+            ->post(route('projects.files.store', $project), ['archive' => $archive])
+            ->assertSessionHasErrors('archive');
+
+        $this->assertSame(0, $project->uploads()->count());
+        $this->assertSame(0, $project->files()->count());
     }
 
     private function project(array $attributes = []): Project

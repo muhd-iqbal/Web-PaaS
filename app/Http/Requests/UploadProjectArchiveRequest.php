@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProjectStatus;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rules\File;
+use Illuminate\Validation\Validator;
 
 class UploadProjectArchiveRequest extends FormRequest
 {
@@ -32,6 +34,16 @@ class UploadProjectArchiveRequest extends FormRequest
                 'extensions:zip',
             ],
         ];
+    }
+
+    /** @return array<int, callable(Validator): void> */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if ($this->route('project')?->status === ProjectStatus::Deploying) {
+                $validator->errors()->add('archive', 'Wait for the current deployment to finish before replacing website files.');
+            }
+        }];
     }
 
     public function messages(): array

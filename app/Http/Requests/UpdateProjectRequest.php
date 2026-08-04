@@ -3,10 +3,12 @@
 namespace App\Http\Requests;
 
 use App\Enums\ProjectRuntime;
+use App\Enums\ProjectStatus;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateProjectRequest extends FormRequest
 {
@@ -34,6 +36,16 @@ class UpdateProjectRequest extends FormRequest
             ],
             'runtime' => ['required', Rule::enum(ProjectRuntime::class)],
         ];
+    }
+
+    /** @return array<int, callable(Validator): void> */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if ($this->route('project')?->status === ProjectStatus::Deploying) {
+                $validator->errors()->add('name', 'Wait for the current deployment to finish before changing this project.');
+            }
+        }];
     }
 
     protected function prepareForValidation(): void

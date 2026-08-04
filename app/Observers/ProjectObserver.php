@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Jobs\DestroyProjectContainer;
 use App\Models\Project;
 use Illuminate\Support\Facades\Storage;
 
@@ -29,6 +30,10 @@ class ProjectObserver
     public function deleted(Project $project): void
     {
         Storage::disk(config('hosting.project_disk'))->deleteDirectory($project->storageDirectory());
+
+        if ($project->container_name || $project->deployed_at || $project->last_deployment_error) {
+            DestroyProjectContainer::dispatch($project->id);
+        }
     }
 
     /**

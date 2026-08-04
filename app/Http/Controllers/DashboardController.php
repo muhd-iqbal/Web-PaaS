@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ProjectStatus;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -15,7 +16,7 @@ class DashboardController extends Controller
         return view('dashboard', [
             'projects' => $request->user()->projects()->latest()->limit(5)->get(),
             'projectCount' => $request->user()->projects()->count(),
-            'projectsWithFiles' => $request->user()->projects()->where('file_count', '>', 0)->count(),
+            'liveProjects' => $request->user()->projects()->where('status', ProjectStatus::Active)->count(),
         ]);
     }
 }

@@ -19,11 +19,16 @@ class Project extends Model
         'user_id',
         'name',
         'slug',
+        'hostname',
+        'url',
+        'container_name',
         'runtime',
         'status',
         'storage_bytes',
         'file_count',
         'files_updated_at',
+        'deployed_at',
+        'last_deployment_error',
     ];
 
     protected function casts(): array
@@ -32,6 +37,7 @@ class Project extends Model
             'runtime' => ProjectRuntime::class,
             'status' => ProjectStatus::class,
             'files_updated_at' => 'datetime',
+            'deployed_at' => 'datetime',
         ];
     }
 
@@ -50,8 +56,22 @@ class Project extends Model
         return $this->hasMany(ProjectUpload::class);
     }
 
+    public function deployments(): HasMany
+    {
+        return $this->hasMany(Deployment::class);
+    }
+
     public function storageDirectory(): string
     {
         return "users/{$this->user_id}/projects/{$this->id}";
+    }
+
+    public function statusAfterFileChange(): ProjectStatus
+    {
+        if ($this->status === ProjectStatus::Suspended) {
+            return ProjectStatus::Suspended;
+        }
+
+        return $this->deployed_at ? ProjectStatus::ChangesPending : ProjectStatus::Draft;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ProjectStatus;
 use App\Exceptions\ArchiveValidationException;
 use App\Http\Requests\UploadProjectArchiveRequest;
 use App\Models\Project;
@@ -37,6 +38,11 @@ class ProjectFileController extends Controller
     public function destroy(Project $project, ProjectFile $projectFile, ProjectArchiveManager $manager): RedirectResponse
     {
         $this->authorize('update', $project);
+
+        if ($project->status === ProjectStatus::Deploying) {
+            throw ValidationException::withMessages(['file' => 'Wait for the current deployment to finish before deleting files.']);
+        }
+
         try {
             $manager->deleteFile($project, $projectFile);
         } catch (ArchiveValidationException $exception) {
