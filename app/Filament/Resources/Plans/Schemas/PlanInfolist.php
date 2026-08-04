@@ -26,6 +26,7 @@ class PlanInfolist
                 TextEntry::make('bandwidth_mb')
                     ->numeric(),
                 TextEntry::make('database_mb')
+                    ->label('Account database quota (MB)')
                     ->numeric(),
                 TextEntry::make('max_upload_mb')
                     ->numeric(),

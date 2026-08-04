@@ -1,6 +1,6 @@
 # Student Web Hosting Platform
 
-Phases 1–3 provide a Laravel 12 control panel with account registration, plan selection, project and file management, plus queued deployment of isolated static or PHP 8.3 websites to Docker behind Traefik HTTPS routing.
+Phases 1–4 provide a Laravel 12 control panel with account registration, plan selection, project and file management, queued Docker deployment, and managed MariaDB databases for PHP projects.
 
 ## Local application setup
 
@@ -54,4 +54,25 @@ The operating-system user running the queue must be allowed to use Docker. Treat
 
 See [`docker/README.md`](docker/README.md) for the production checklist and lifecycle details.
 
-Hosted databases, billing, and usage monitoring remain intentionally out of scope for Phase 3.
+## Managed database setup
+
+Start the shared MariaDB service before provisioning databases:
+
+```bash
+cd docker/database
+cp .env.example .env
+# Set a long random MARIADB_ROOT_PASSWORD in .env
+docker compose up -d
+```
+
+Use the same password for `HOSTING_DATABASE_ADMIN_PASSWORD` in Laravel. The admin port is bound to `127.0.0.1:3307`; customer containers connect through the private `hosting_database` Docker network as `hosting-database:3306`.
+
+Run Laravel's scheduler so account database usage is refreshed and plan quotas are enforced:
+
+```bash
+php artisan schedule:work
+```
+
+Production may use the normal once-per-minute cron entry instead. Accounts exceeding their shared database allowance are switched to read-only SQL privileges until an administrator increases the allowance or reduces/restores usage. Credentials are encrypted with Laravel's application key and injected into PHP containers on redeployment.
+
+Billing and general-purpose resource monitoring remain intentionally out of scope.

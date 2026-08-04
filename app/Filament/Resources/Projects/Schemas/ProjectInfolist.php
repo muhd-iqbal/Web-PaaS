@@ -39,6 +39,17 @@ class ProjectInfolist
                 TextEntry::make('last_deployment_error')
                     ->placeholder('-')
                     ->columnSpanFull(),
+                TextEntry::make('hostedDatabase.status')
+                    ->label('Database status')
+                    ->badge()
+                    ->placeholder('-'),
+                TextEntry::make('hostedDatabase.database_name')
+                    ->label('Database name')
+                    ->placeholder('-'),
+                TextEntry::make('hostedDatabase.size_bytes')
+                    ->label('Database size')
+                    ->formatStateUsing(fn (?int $state): string => number_format(($state ?? 0) / 1_048_576, 2).' MB')
+                    ->placeholder('-'),
                 TextEntry::make('created_at')
                     ->dateTime()
                     ->placeholder('-'),

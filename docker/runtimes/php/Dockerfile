@@ -3,6 +3,7 @@ FROM php:8.3-fpm-alpine
 RUN set -eux; \
     mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"; \
     apk add --no-cache nginx; \
+    docker-php-ext-install pdo_mysql; \
     mkdir -p /var/lib/nginx /var/log/nginx; \
     chown -R www-data:www-data /var/lib/nginx /var/log/nginx /etc/nginx
 

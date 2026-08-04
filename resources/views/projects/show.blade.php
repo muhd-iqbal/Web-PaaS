@@ -5,6 +5,9 @@
     $plan = $project->user->plan;
     $storageLimitBytes = ($plan?->storage_mb ?? 0) * 1048576;
     $storagePercent = $storageLimitBytes > 0 ? min(100, ($accountStorageBytes / $storageLimitBytes) * 100) : 0;
+    $databaseLimitBytes = ($plan?->database_mb ?? 0) * 1048576;
+    $databasePercent = $databaseLimitBytes > 0 ? min(100, ($accountDatabaseBytes / $databaseLimitBytes) * 100) : 0;
+    $database = $project->hostedDatabase;
 @endphp
 <div class="page-head"><div><div class="eyebrow">Website project</div><h1>{{ $project->name }}</h1><p class="muted">{{ $project->slug }}</p></div>@if($project->status !== \App\Enums\ProjectStatus::Deploying)<div class="actions"><a class="button secondary" href="{{ route('projects.edit', $project) }}">Edit settings</a><form method="POST" action="{{ route('projects.destroy', $project) }}" onsubmit="return confirm('Delete this project and all of its files?')">@csrf @method('DELETE')<button class="button danger" type="submit">Delete project</button></form></div>@endif</div>
 
@@ -12,6 +15,42 @@
     <div class="card"><div class="muted small">Project files</div><div class="stat">{{ number_format($project->file_count) }}</div><p class="muted">{{ number_format($project->storage_bytes / 1048576, 2) }} MB used by this website.</p></div>
     <div class="card"><div class="muted small">Account storage</div><div class="stat">{{ number_format($accountStorageBytes / 1048576, 2) }} MB</div><div class="meter"><span style="width:{{ $storagePercent }}%"></span></div><div class="muted small">{{ number_format($storagePercent, 1) }}% of {{ number_format($plan?->storage_mb ?? 0) }} MB</div></div>
 </div>
+
+@if($project->runtime === \App\Enums\ProjectRuntime::Php)
+<div class="card" style="margin-bottom:28px">
+    <div class="eyebrow">Managed database</div><h2>MySQL database</h2>
+    @error('database')<div class="error" style="margin-bottom:16px">{{ $message }}</div>@enderror
+    @if(!$database)
+        @if(($plan?->database_mb ?? 0) > 0)
+            <p class="muted">Create one private database for this PHP project. Your plan's {{ number_format($plan->database_mb) }} MB allowance is shared by all databases on the account.</p>
+            @if($project->status !== \App\Enums\ProjectStatus::Deploying)<form method="POST" action="{{ route('projects.database.store', $project) }}">@csrf<button class="button" type="submit">Create database</button></form>@endif
+        @else<p class="muted">Your current plan does not include database hosting.</p>@endif
+    @else
+        <div class="grid two" style="margin-bottom:20px">
+            <div><div class="muted small">Status</div><strong>{{ $database->status->getLabel() }}</strong></div>
+            <div><div class="muted small">Account usage</div><strong>{{ number_format($accountDatabaseBytes / 1048576, 2) }} MB of {{ number_format($plan?->database_mb ?? 0) }} MB</strong></div>
+        </div>
+        <div class="meter"><span style="width:{{ $databasePercent }}%"></span></div>
+        @if($database->status === \App\Enums\ProjectDatabaseStatus::QuotaExceeded)<div class="alert" style="margin-top:16px;border-color:#fed7aa;background:#fff7ed;color:#9a3412">The account database quota is exceeded. Managed databases are read-only until usage is brought within the plan limit.</div>@endif
+        @if($database->last_error)<div class="alert" style="margin-top:16px;border-color:#fecaca;background:#fef2f2;color:#b91c1c">{{ $database->last_error }}</div>@endif
+        @if(in_array($database->status, [\App\Enums\ProjectDatabaseStatus::Active, \App\Enums\ProjectDatabaseStatus::QuotaExceeded], true))
+        <div class="table-wrap" style="margin-top:20px"><table><tbody>
+            <tr><th>Host</th><td><code>{{ $database->host }}</code></td></tr>
+            <tr><th>Port</th><td><code>{{ $database->port }}</code></td></tr>
+            <tr><th>Database</th><td><code>{{ $database->database_name }}</code></td></tr>
+            <tr><th>Username</th><td><code>{{ $database->username }}</code></td></tr>
+            <tr><th>Password</th><td><code>{{ $database->password }}</code></td></tr>
+        </tbody></table></div>
+        <p class="muted small">Credentials are injected as standard DB_* environment variables on the next deployment. Keep the password private.</p>
+        @endif
+        <div class="actions" style="margin-top:18px">
+            <form method="POST" action="{{ route('projects.database.refresh', $project) }}">@csrf<button class="button secondary" type="submit">Refresh usage</button></form>
+            @if($project->status !== \App\Enums\ProjectStatus::Deploying && $database->status !== \App\Enums\ProjectDatabaseStatus::Failed)<form method="POST" action="{{ route('projects.database.rotate', $project) }}" onsubmit="return confirm('Rotate this password? The website must be redeployed afterward.')">@csrf<button class="button secondary" type="submit">Rotate password</button></form>@endif
+            @if($project->status !== \App\Enums\ProjectStatus::Deploying)<form method="POST" action="{{ route('projects.database.destroy', $project) }}" onsubmit="return confirm('Permanently delete this database and all its data?')">@csrf @method('DELETE')<button class="button danger" type="submit">Delete database</button></form>@endif
+        </div>
+    @endif
+</div>
+@endif
 
 <div class="card" style="margin-bottom:28px">
     <div class="eyebrow">Deployment</div>

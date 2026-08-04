@@ -84,6 +84,22 @@ return [
             ]) : [],
         ],
 
+        'hosting_database_admin' => [
+            'driver' => 'mariadb',
+            'host' => env('HOSTING_DATABASE_ADMIN_HOST', '127.0.0.1'),
+            'port' => env('HOSTING_DATABASE_ADMIN_PORT', '3307'),
+            'database' => env('HOSTING_DATABASE_ADMIN_DATABASE', 'mysql'),
+            'username' => env('HOSTING_DATABASE_ADMIN_USERNAME', 'root'),
+            'password' => env('HOSTING_DATABASE_ADMIN_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'options' => extension_loaded('pdo_mysql') ? [
+                PDO::ATTR_TIMEOUT => (int) env('HOSTING_DATABASE_ADMIN_TIMEOUT', 10),
+            ] : [],
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),

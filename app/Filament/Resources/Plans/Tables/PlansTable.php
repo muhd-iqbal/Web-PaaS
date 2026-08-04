@@ -33,6 +33,7 @@ class PlansTable
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('database_mb')
+                    ->label('Database MB')
                     ->numeric()
                     ->sortable(),
                 TextColumn::make('max_upload_mb')

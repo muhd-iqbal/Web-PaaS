@@ -3,11 +3,21 @@
 namespace App\Observers;
 
 use App\Jobs\DestroyProjectContainer;
+use App\Jobs\DropProjectDatabase;
 use App\Models\Project;
 use Illuminate\Support\Facades\Storage;
 
 class ProjectObserver
 {
+    public function deleting(Project $project): void
+    {
+        $database = $project->hostedDatabase()->first();
+
+        if ($database) {
+            DropProjectDatabase::dispatch($database->database_name, $database->username)->afterCommit();
+        }
+    }
+
     /**
      * Handle the Project "created" event.
      */

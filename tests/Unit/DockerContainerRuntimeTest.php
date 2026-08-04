@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Enums\ProjectRuntime;
 use App\Models\Project;
+use App\Models\ProjectDatabase;
 use App\Services\DockerContainerRuntime;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -36,5 +37,25 @@ class DockerContainerRuntimeTest extends TestCase
         $this->assertTrue(collect($runCommand)->contains(fn (string $argument): bool => str_contains($argument, "Host(`{$project->slug}.sites.example.test`)")));
         $this->assertTrue(collect($runCommand)->contains(fn (string $argument): bool => str_contains($argument, 'target=/var/www/html,readonly')));
         $this->assertSame('hosting-project-'.$project->id, $instance->name);
+    }
+
+    public function test_php_deployment_receives_managed_database_credentials_and_private_network(): void
+    {
+        Storage::fake('project_files');
+        $project = Project::factory()->create(['runtime' => ProjectRuntime::Php, 'file_count' => 1]);
+        $database = ProjectDatabase::factory()->for($project)->create(['password' => 'database-secret']);
+        Storage::disk('project_files')->put($project->storageDirectory().'/index.php', '<?php echo "ok";');
+        $runner = new RecordingCommandRunner;
+
+        (new DockerContainerRuntime($runner))->deploy($project, 'php.sites.example.test');
+
+        $runCommand = collect($runner->commands)->first(fn (array $command): bool => in_array('run', $command, true));
+        $this->assertContains('DB_HOST='.$database->host, $runCommand);
+        $this->assertContains('DB_DATABASE='.$database->database_name, $runCommand);
+        $this->assertContains('DB_USERNAME='.$database->username, $runCommand);
+        $this->assertContains('DB_PASSWORD=database-secret', $runCommand);
+        $this->assertTrue(collect($runner->commands)->contains(
+            fn (array $command): bool => in_array('connect', $command, true) && in_array('hosting_database', $command, true),
+        ));
     }
 }

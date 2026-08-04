@@ -50,6 +50,7 @@ class ProjectController extends Controller
         $project->load([
             'uploads' => fn ($query) => $query->latest()->limit(10),
             'deployments' => fn ($query) => $query->latest()->limit(20),
+            'hostedDatabase',
             'user.plan',
         ]);
 
@@ -57,6 +58,7 @@ class ProjectController extends Controller
             'project' => $project,
             'files' => $project->files()->orderBy('path')->paginate(50),
             'accountStorageBytes' => (int) $project->user->projects()->sum('storage_bytes'),
+            'accountDatabaseBytes' => (int) $project->user->projects()->withSum('hostedDatabase', 'size_bytes')->get()->sum('hosted_database_sum_size_bytes'),
         ]);
     }
 

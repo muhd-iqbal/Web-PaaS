@@ -42,8 +42,14 @@ class UpdateProjectRequest extends FormRequest
     public function after(): array
     {
         return [function (Validator $validator): void {
-            if ($this->route('project')?->status === ProjectStatus::Deploying) {
+            $project = $this->route('project');
+
+            if ($project?->status === ProjectStatus::Deploying) {
                 $validator->errors()->add('name', 'Wait for the current deployment to finish before changing this project.');
+            }
+
+            if ($this->input('runtime') !== ProjectRuntime::Php->value && $project?->hostedDatabase()->exists()) {
+                $validator->errors()->add('runtime', 'Delete the managed database before changing to the static runtime.');
             }
         }];
     }

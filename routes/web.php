@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProjectDatabaseController;
 use App\Http\Controllers\ProjectDeploymentController;
 use App\Http\Controllers\ProjectFileController;
 use App\Models\Plan;
@@ -27,6 +28,10 @@ Route::middleware('auth')->group(function (): void {
     Route::resource('projects', ProjectController::class);
     Route::post('/projects/{project}/deploy', [ProjectDeploymentController::class, 'deploy'])->name('projects.deploy');
     Route::post('/projects/{project}/restart', [ProjectDeploymentController::class, 'restart'])->name('projects.restart');
+    Route::post('/projects/{project}/database', [ProjectDatabaseController::class, 'store'])->name('projects.database.store');
+    Route::post('/projects/{project}/database/rotate', [ProjectDatabaseController::class, 'rotate'])->name('projects.database.rotate');
+    Route::post('/projects/{project}/database/refresh', [ProjectDatabaseController::class, 'refresh'])->middleware('throttle:6,1')->name('projects.database.refresh');
+    Route::delete('/projects/{project}/database', [ProjectDatabaseController::class, 'destroy'])->name('projects.database.destroy');
     Route::post('/projects/{project}/files', [ProjectFileController::class, 'store'])->name('projects.files.store');
     Route::get('/projects/{project}/files/{projectFile}', [ProjectFileController::class, 'download'])->name('projects.files.download');
     Route::delete('/projects/{project}/files/{projectFile}', [ProjectFileController::class, 'destroy'])->name('projects.files.destroy');

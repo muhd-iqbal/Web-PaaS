@@ -17,6 +17,13 @@ return [
         'log_lines' => (int) env('DOCKER_LOG_LINES', 200),
     ],
 
+    'database' => [
+        'admin_connection' => env('HOSTING_DATABASE_ADMIN_CONNECTION', 'hosting_database_admin'),
+        'container_host' => env('HOSTING_DATABASE_HOST', 'hosting-database'),
+        'container_port' => (int) env('HOSTING_DATABASE_PORT', 3306),
+        'docker_network' => env('HOSTING_DATABASE_NETWORK', 'hosting_database'),
+    ],
+
     'allowed_extensions' => [
         'static' => [
             'html', 'htm', 'css', 'js', 'mjs', 'json', 'xml', 'txt', 'map', 'webmanifest',

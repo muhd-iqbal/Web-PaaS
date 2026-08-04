@@ -43,6 +43,7 @@ class PlanForm
                     ->numeric()
                     ->minValue(1),
                 TextInput::make('database_mb')
+                    ->label('Account database quota (MB)')
                     ->required()
                     ->numeric()
                     ->minValue(0)

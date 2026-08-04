@@ -44,6 +44,11 @@ class ProjectsTable
                     ->label('Storage')
                     ->formatStateUsing(fn (int $state): string => number_format($state / 1_048_576, 2).' MB')
                     ->sortable(),
+                TextColumn::make('hostedDatabase.size_bytes')
+                    ->label('Database')
+                    ->formatStateUsing(fn (?int $state): string => number_format(($state ?? 0) / 1_048_576, 2).' MB')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('files_updated_at')
                     ->dateTime()
                     ->sortable()

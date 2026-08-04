@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Contracts\CommandRunner;
 use App\Contracts\ContainerRuntime;
 use App\Enums\DeploymentStatus;
+use App\Enums\ProjectDatabaseStatus;
 use App\Enums\ProjectRuntime;
 use App\Exceptions\ContainerRuntimeException;
 use App\Models\Project;
@@ -136,7 +137,7 @@ class DockerContainerRuntime implements ContainerRuntime
         $containerName = $this->containerName($project->id);
         $networkName = $this->networkName($project->id);
         $routerName = "project-{$project->id}";
-        $result = $this->command([
+        $arguments = [
             'container', 'run', '--detach',
             '--name', $containerName,
             '--network', $networkName,
@@ -157,12 +158,33 @@ class DockerContainerRuntime implements ContainerRuntime
             '--label', "traefik.http.routers.{$routerName}.tls.certresolver=".config('hosting.deployment.certificate_resolver'),
             '--label', "traefik.http.routers.{$routerName}.service={$routerName}",
             '--label', "traefik.http.services.{$routerName}.loadbalancer.server.port=".config('hosting.deployment.container_port'),
-            $image,
-        ], true);
+        ];
+        $database = $project->hostedDatabase()
+            ->whereIn('status', [ProjectDatabaseStatus::Active->value, ProjectDatabaseStatus::QuotaExceeded->value])
+            ->first();
+
+        if ($database) {
+            array_push(
+                $arguments,
+                '--env', 'DB_CONNECTION=mysql',
+                '--env', "DB_HOST={$database->host}",
+                '--env', "DB_PORT={$database->port}",
+                '--env', "DB_DATABASE={$database->database_name}",
+                '--env', "DB_USERNAME={$database->username}",
+                '--env', "DB_PASSWORD={$database->password}",
+            );
+        }
+
+        $arguments[] = $image;
+        $result = $this->command($arguments, true);
         $containerId = trim($result->output);
 
         if ($containerId === '') {
             throw new ContainerRuntimeException('Docker did not return a container identifier.');
+        }
+
+        if ($database) {
+            $this->command(['network', 'connect', config('hosting.database.docker_network'), $containerName], true);
         }
 
         $this->assertContainerRunning($containerName);
