@@ -5,8 +5,21 @@
 @error('billing')<div class="alert" style="border-color:#fecaca;background:#fef2f2;color:#b91c1c">{{ $message }}</div>@enderror
 
 <div class="card" style="margin-bottom:28px">
-    <div class="muted small">Current access</div><div class="stat">{{ $currentSubscription?->plan?->name ?? 'No active plan' }}</div>
-    @if($currentSubscription)<p class="muted">{{ $currentSubscription->status->getLabel() }}@if($currentSubscription->current_period_end) · Current period ends {{ $currentSubscription->current_period_end->format('M j, Y') }}@endif @if($currentSubscription->cancel_at_period_end) · Cancels at period end@endif</p>@else<p class="muted">Website changes and deployments require an active subscription.</p>@endif
+    <div class="muted small">Current access</div>
+    <div class="stat">{{ $currentSubscription?->plan?->name ?? 'No active plan' }}</div>
+    @if($currentSubscription)
+        <p class="muted">
+            {{ $currentSubscription->status->getLabel() }}
+            @if($currentSubscription->current_period_end)
+                · Current period ends {{ $currentSubscription->current_period_end->format('M j, Y') }}
+            @endif
+            @if($currentSubscription->cancel_at_period_end)
+                · Cancels at period end
+            @endif
+        </p>
+    @else
+        <p class="muted">Website changes and deployments require an active subscription.</p>
+    @endif
 </div>
 
 <div class="grid" style="margin-bottom:28px">

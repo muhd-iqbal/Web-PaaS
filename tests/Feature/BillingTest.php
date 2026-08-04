@@ -21,6 +21,16 @@ class BillingTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_billing_page_renders_for_an_authenticated_user(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('billing.index'))
+            ->assertOk()
+            ->assertSee('Hosting subscription');
+    }
+
     private FakeBillingGateway $gateway;
 
     protected function setUp(): void
