@@ -62,6 +62,26 @@ class Project extends Model
         return $this->hasMany(Deployment::class);
     }
 
+    public function bandwidthUsages(): HasMany
+    {
+        return $this->hasMany(BandwidthUsage::class);
+    }
+
+    public function resourceSnapshots(): HasMany
+    {
+        return $this->hasMany(ProjectResourceSnapshot::class);
+    }
+
+    public function latestResourceSnapshot(): HasOne
+    {
+        return $this->hasOne(ProjectResourceSnapshot::class)->latestOfMany('sampled_at');
+    }
+
+    public function adminAlerts(): HasMany
+    {
+        return $this->hasMany(AdminAlert::class);
+    }
+
     public function hostedDatabase(): HasOne
     {
         return $this->hasOne(ProjectDatabase::class);

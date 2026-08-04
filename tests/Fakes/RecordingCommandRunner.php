@@ -35,6 +35,18 @@ class RecordingCommandRunner implements CommandRunner
             return new CommandResult(0, 'true healthy');
         }
 
+        if (str_contains($joined, '{{json .State}}')) {
+            return new CommandResult(0, '{"Running":true,"OOMKilled":false,"Health":{"Status":"healthy"}}');
+        }
+
+        if (str_contains($joined, '{{.RestartCount}}')) {
+            return new CommandResult(0, '2');
+        }
+
+        if (str_contains($joined, ' container stats ')) {
+            return new CommandResult(0, '{"CPUPerc":"1.25%","MemPerc":"5.00%","MemUsage":"32MiB / 1GiB","PIDs":"4"}');
+        }
+
         if (str_contains($joined, ' container run ')) {
             return new CommandResult(0, str_repeat('c', 64));
         }

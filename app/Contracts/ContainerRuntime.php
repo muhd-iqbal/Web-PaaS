@@ -4,6 +4,7 @@ namespace App\Contracts;
 
 use App\Models\Project;
 use App\ValueObjects\ContainerInstance;
+use App\ValueObjects\ContainerMetrics;
 
 interface ContainerRuntime
 {
@@ -16,4 +17,6 @@ interface ContainerRuntime
     public function destroy(int $projectId): void;
 
     public function logs(Project $project, int $lines): string;
+
+    public function metrics(Project $project): ContainerMetrics;
 }

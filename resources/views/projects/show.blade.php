@@ -8,14 +8,32 @@
     $databaseLimitBytes = ($plan?->database_mb ?? 0) * 1048576;
     $databasePercent = $databaseLimitBytes > 0 ? min(100, ($accountDatabaseBytes / $databaseLimitBytes) * 100) : 0;
     $database = $project->hostedDatabase;
+    $bandwidthLimitBytes = ($plan?->bandwidth_mb ?? 0) * 1048576;
+    $bandwidthPercent = $bandwidthLimitBytes > 0 ? min(100, ($accountBandwidthBytes / $bandwidthLimitBytes) * 100) : 0;
+    $snapshot = $project->latestResourceSnapshot;
     $canManage = auth()->user()->can('update', $project);
 @endphp
 <div class="page-head"><div><div class="eyebrow">Website project</div><h1>{{ $project->name }}</h1><p class="muted">{{ $project->slug }}</p></div>@if($project->status !== \App\Enums\ProjectStatus::Deploying)<div class="actions">@if($canManage)<a class="button secondary" href="{{ route('projects.edit', $project) }}">Edit settings</a>@endif<form method="POST" action="{{ route('projects.destroy', $project) }}" onsubmit="return confirm('Delete this project and all of its files?')">@csrf @method('DELETE')<button class="button danger" type="submit">Delete project</button></form></div>@endif</div>
 @if(!$canManage)<div class="alert" style="border-color:#fed7aa;background:#fff7ed;color:#9a3412">This project is outside your active plan allowance. You can view, download, or delete resources, but an active plan with sufficient website capacity is required to make changes.</div>@endif
 
-<div class="grid two" style="margin-bottom:28px">
+<div class="grid" style="margin-bottom:28px">
     <div class="card"><div class="muted small">Project files</div><div class="stat">{{ number_format($project->file_count) }}</div><p class="muted">{{ number_format($project->storage_bytes / 1048576, 2) }} MB used by this website.</p></div>
     <div class="card"><div class="muted small">Account storage</div><div class="stat">{{ number_format($accountStorageBytes / 1048576, 2) }} MB</div><div class="meter"><span style="width:{{ $storagePercent }}%"></span></div><div class="muted small">{{ number_format($storagePercent, 1) }}% of {{ number_format($plan?->storage_mb ?? 0) }} MB</div></div>
+    <div class="card"><div class="muted small">Monthly bandwidth</div><div class="stat">{{ number_format($projectBandwidthBytes / 1048576, 2) }} MB</div><div class="meter"><span style="width:{{ $bandwidthPercent }}%"></span></div><div class="muted small">Account: {{ number_format($accountBandwidthBytes / 1048576, 2) }} of {{ number_format($plan?->bandwidth_mb ?? 0) }} MB</div></div>
+</div>
+
+<div class="card" style="margin-bottom:28px">
+    <div class="page-head"><div><div class="eyebrow">Monitoring</div><h2>Container health</h2></div>@if($project->container_name)<a class="button secondary" href="{{ route('projects.logs', $project) }}">View recent logs</a>@endif</div>
+    @if(!$project->container_name)<p class="muted">Resource monitoring begins after the first deployment.</p>
+    @elseif(!$snapshot)<p class="muted">Waiting for the first scheduled monitoring sample.</p>
+    @else
+        <div class="grid">
+            <div><div class="muted small">Status</div><strong>{{ $snapshot->error_message ? 'Unavailable' : ($snapshot->is_running ? ucfirst($snapshot->health ?? 'running') : 'Stopped') }}</strong></div>
+            <div><div class="muted small">CPU</div><strong>{{ $snapshot->cpu_percent === null ? '—' : number_format($snapshot->cpu_percent, 2).'%' }}</strong></div>
+            <div><div class="muted small">Memory</div><strong>{{ $snapshot->memory_usage_bytes === null ? '—' : number_format($snapshot->memory_usage_bytes / 1048576, 2).' MB' }}</strong></div>
+        </div>
+        <p class="muted small" style="margin-bottom:0">Sampled {{ $snapshot->sampled_at->diffForHumans() }} · {{ $snapshot->process_count ?? '—' }} processes · {{ number_format($snapshot->restart_count) }} restarts</p>
+    @endif
 </div>
 
 @if($project->runtime === \App\Enums\ProjectRuntime::Php)

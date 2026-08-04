@@ -5,6 +5,7 @@ namespace Tests\Fakes;
 use App\Contracts\ContainerRuntime;
 use App\Models\Project;
 use App\ValueObjects\ContainerInstance;
+use App\ValueObjects\ContainerMetrics;
 use RuntimeException;
 
 class FakeContainerRuntime implements ContainerRuntime
@@ -22,6 +23,13 @@ class FakeContainerRuntime implements ContainerRuntime
     public array $destroyed = [];
 
     public ?string $failure = null;
+
+    public ContainerMetrics $containerMetrics;
+
+    public function __construct()
+    {
+        $this->containerMetrics = new ContainerMetrics(true, 'healthy', 1.5, 10, 10_485_760, 104_857_600, 3);
+    }
 
     public function deploy(Project $project, string $hostname): ContainerInstance
     {
@@ -56,6 +64,13 @@ class FakeContainerRuntime implements ContainerRuntime
         $this->failWhenConfigured();
 
         return "Last {$lines} lines for {$project->id}";
+    }
+
+    public function metrics(Project $project): ContainerMetrics
+    {
+        $this->failWhenConfigured();
+
+        return $this->containerMetrics;
     }
 
     private function failWhenConfigured(): void

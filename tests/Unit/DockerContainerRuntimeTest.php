@@ -58,4 +58,24 @@ class DockerContainerRuntimeTest extends TestCase
             fn (array $command): bool => in_array('connect', $command, true) && in_array('hosting_database', $command, true),
         ));
     }
+
+    public function test_metrics_parse_bounded_docker_inspect_and_stats_output(): void
+    {
+        $project = Project::factory()->create(['container_name' => 'hosting-project-99']);
+        $runner = new RecordingCommandRunner;
+
+        $metrics = (new DockerContainerRuntime($runner))->metrics($project);
+
+        $this->assertTrue($metrics->isRunning);
+        $this->assertSame('healthy', $metrics->health);
+        $this->assertSame(1.25, $metrics->cpuPercent);
+        $this->assertSame(5.0, $metrics->memoryPercent);
+        $this->assertSame(33_554_432, $metrics->memoryUsageBytes);
+        $this->assertSame(1_073_741_824, $metrics->memoryLimitBytes);
+        $this->assertSame(4, $metrics->processCount);
+        $this->assertSame(2, $metrics->restartCount);
+        $this->assertTrue(collect($runner->commands)->contains(
+            fn (array $command): bool => in_array('stats', $command, true) && in_array('--no-stream', $command, true),
+        ));
+    }
 }

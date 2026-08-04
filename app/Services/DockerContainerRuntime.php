@@ -9,8 +9,10 @@ use App\Enums\ProjectDatabaseStatus;
 use App\Enums\ProjectRuntime;
 use App\Exceptions\ContainerRuntimeException;
 use App\Models\Project;
+use App\Support\DockerByteSize;
 use App\ValueObjects\CommandResult;
 use App\ValueObjects\ContainerInstance;
+use App\ValueObjects\ContainerMetrics;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -99,6 +101,97 @@ class DockerContainerRuntime implements ContainerRuntime
         }
 
         return trim($result->output."\n".$result->errorOutput);
+    }
+
+    public function metrics(Project $project): ContainerMetrics
+    {
+        $containerName = $project->container_name ?: $this->containerName($project->id);
+        $stateResult = $this->command(['container', 'inspect', '--format', '{{json .State}}', $containerName]);
+
+        if (! $stateResult->successful()) {
+            throw $this->exceptionFor($stateResult, 'Container state could not be read.');
+        }
+
+        try {
+            $state = json_decode($stateResult->output, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new ContainerRuntimeException('Docker returned invalid container state information.');
+        }
+
+        if (! is_array($state)) {
+            throw new ContainerRuntimeException('Docker returned invalid container state information.');
+        }
+
+        $restartResult = $this->command(['container', 'inspect', '--format', '{{.RestartCount}}', $containerName], true);
+        $restartCount = max(0, (int) trim($restartResult->output));
+        $isRunning = (bool) ($state['Running'] ?? false);
+        $health = is_array($state['Health'] ?? null) ? ($state['Health']['Status'] ?? null) : null;
+
+        if (! $isRunning) {
+            return new ContainerMetrics(
+                false,
+                is_string($health) ? $health : null,
+                restartCount: $restartCount,
+                oomKilled: (bool) ($state['OOMKilled'] ?? false),
+            );
+        }
+
+        $statsResult = $this->command(['container', 'stats', '--no-stream', '--format', '{{json .}}', $containerName]);
+
+        if (! $statsResult->successful()) {
+            throw $this->exceptionFor($statsResult, 'Container resource usage could not be read.');
+        }
+
+        try {
+            $stats = json_decode($statsResult->output, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            throw new ContainerRuntimeException('Docker returned invalid resource usage information.');
+        }
+
+        if (! is_array($stats)) {
+            throw new ContainerRuntimeException('Docker returned invalid resource usage information.');
+        }
+
+        [$memoryUsage, $memoryLimit] = $this->parseMemoryUsage((string) ($stats['MemUsage'] ?? ''));
+
+        return new ContainerMetrics(
+            true,
+            is_string($health) ? $health : null,
+            $this->parsePercent($stats['CPUPerc'] ?? null),
+            $this->parsePercent($stats['MemPerc'] ?? null),
+            $memoryUsage,
+            $memoryLimit,
+            isset($stats['PIDs']) ? max(0, (int) $stats['PIDs']) : null,
+            $restartCount,
+            (bool) ($state['OOMKilled'] ?? false),
+        );
+    }
+
+    private function parsePercent(mixed $value): ?float
+    {
+        if (! is_string($value) && ! is_numeric($value)) {
+            return null;
+        }
+
+        $number = rtrim(trim((string) $value), "% \t\n\r\0\x0B");
+
+        return is_numeric($number) ? max(0, (float) $number) : null;
+    }
+
+    /** @return array{int|null, int|null} */
+    private function parseMemoryUsage(string $value): array
+    {
+        $parts = array_map('trim', explode('/', $value, 2));
+
+        if (count($parts) !== 2) {
+            return [null, null];
+        }
+
+        try {
+            return [DockerByteSize::parse($parts[0]), DockerByteSize::parse($parts[1])];
+        } catch (\InvalidArgumentException) {
+            return [null, null];
+        }
     }
 
     private function assertDockerAvailable(): void

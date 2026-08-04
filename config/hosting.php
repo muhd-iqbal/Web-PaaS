@@ -24,6 +24,15 @@ return [
         'docker_network' => env('HOSTING_DATABASE_NETWORK', 'hosting_database'),
     ],
 
+    'monitoring' => [
+        'traefik_access_log' => env('TRAEFIK_ACCESS_LOG_PATH') ?: base_path('docker/traefik/logs/access.json'),
+        'access_log_batch_lines' => (int) env('MONITORING_ACCESS_LOG_BATCH_LINES', 10000),
+        'cpu_warning_percent' => (float) env('MONITORING_CPU_WARNING_PERCENT', 90),
+        'memory_warning_percent' => (float) env('MONITORING_MEMORY_WARNING_PERCENT', 90),
+        'bandwidth_warning_percent' => (float) env('MONITORING_BANDWIDTH_WARNING_PERCENT', 80),
+        'snapshot_retention_days' => (int) env('MONITORING_SNAPSHOT_RETENTION_DAYS', 30),
+    ],
+
     'allowed_extensions' => [
         'static' => [
             'html', 'htm', 'css', 'js', 'mjs', 'json', 'xml', 'txt', 'map', 'webmanifest',

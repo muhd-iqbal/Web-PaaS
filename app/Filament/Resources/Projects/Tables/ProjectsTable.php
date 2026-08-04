@@ -49,6 +49,14 @@ class ProjectsTable
                     ->formatStateUsing(fn (?int $state): string => number_format(($state ?? 0) / 1_048_576, 2).' MB')
                     ->placeholder('-')
                     ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('latestResourceSnapshot.health')
+                    ->label('Health')
+                    ->placeholder('-'),
+                TextColumn::make('latestResourceSnapshot.cpu_percent')
+                    ->label('CPU')
+                    ->suffix('%')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('files_updated_at')
                     ->dateTime()
                     ->sortable()

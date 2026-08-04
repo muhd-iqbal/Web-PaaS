@@ -50,6 +50,21 @@ class ProjectInfolist
                     ->label('Database size')
                     ->formatStateUsing(fn (?int $state): string => number_format(($state ?? 0) / 1_048_576, 2).' MB')
                     ->placeholder('-'),
+                TextEntry::make('latestResourceSnapshot.health')
+                    ->label('Container health')
+                    ->placeholder('-'),
+                TextEntry::make('latestResourceSnapshot.cpu_percent')
+                    ->label('Latest CPU')
+                    ->suffix('%')
+                    ->placeholder('-'),
+                TextEntry::make('latestResourceSnapshot.memory_usage_bytes')
+                    ->label('Latest memory')
+                    ->formatStateUsing(fn (?int $state): string => $state === null ? '-' : number_format($state / 1_048_576, 2).' MB')
+                    ->placeholder('-'),
+                TextEntry::make('latestResourceSnapshot.sampled_at')
+                    ->label('Last monitored')
+                    ->dateTime()
+                    ->placeholder('-'),
                 TextEntry::make('created_at')
                     ->dateTime()
                     ->placeholder('-'),

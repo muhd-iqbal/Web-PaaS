@@ -8,6 +8,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectDatabaseController;
 use App\Http\Controllers\ProjectDeploymentController;
 use App\Http\Controllers\ProjectFileController;
+use App\Http\Controllers\ProjectLogController;
 use App\Http\Controllers\StripeWebhookController;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,7 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/billing/portal', [BillingController::class, 'portal'])->middleware('throttle:6,1')->name('billing.portal');
     Route::get('/billing/success', [BillingController::class, 'success'])->name('billing.success');
     Route::resource('projects', ProjectController::class);
+    Route::get('/projects/{project}/logs', ProjectLogController::class)->middleware('throttle:30,1')->name('projects.logs');
     Route::post('/projects/{project}/deploy', [ProjectDeploymentController::class, 'deploy'])->name('projects.deploy');
     Route::post('/projects/{project}/restart', [ProjectDeploymentController::class, 'restart'])->name('projects.restart');
     Route::post('/projects/{project}/database', [ProjectDatabaseController::class, 'store'])->name('projects.database.store');

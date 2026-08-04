@@ -6,6 +6,7 @@ use App\Enums\ProjectRuntime;
 use App\Enums\ProjectStatus;
 use App\Http\Requests\StoreProjectRequest;
 use App\Http\Requests\UpdateProjectRequest;
+use App\Models\BandwidthUsage;
 use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Validation\ValidationException;
@@ -54,13 +55,21 @@ class ProjectController extends Controller
             'deployments' => fn ($query) => $query->latest()->limit(20),
             'hostedDatabase',
             'user.plan',
+            'latestResourceSnapshot',
         ]);
+
+        $periodStart = now()->startOfMonth()->toDateString();
 
         return view('projects.show', [
             'project' => $project,
             'files' => $project->files()->orderBy('path')->paginate(50),
             'accountStorageBytes' => (int) $project->user->projects()->sum('storage_bytes'),
             'accountDatabaseBytes' => (int) $project->user->projects()->withSum('hostedDatabase', 'size_bytes')->get()->sum('hosted_database_sum_size_bytes'),
+            'projectBandwidthBytes' => (int) $project->bandwidthUsages()->whereDate('period_start', $periodStart)->sum('bytes_sent'),
+            'accountBandwidthBytes' => (int) BandwidthUsage::query()
+                ->whereIn('project_id', $project->user->projects()->select('id'))
+                ->whereDate('period_start', $periodStart)
+                ->sum('bytes_sent'),
         ]);
     }
 

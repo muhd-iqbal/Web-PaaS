@@ -70,6 +70,11 @@ class User extends Authenticatable implements FilamentUser
         return $this->hasMany(Subscription::class);
     }
 
+    public function adminAlerts(): HasMany
+    {
+        return $this->hasMany(AdminAlert::class);
+    }
+
     public function currentSubscription(): ?Subscription
     {
         return $this->subscriptions()->latest('id')->get()->first(fn (Subscription $subscription): bool => $subscription->grantsAccess());
