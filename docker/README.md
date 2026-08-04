@@ -1,5 +1,118 @@
 # Phase 3 Docker operations
 
+## Local development
+
+The Laravel control panel can be tested locally without running customer website containers. The included Traefik configuration expects a public domain and Let's Encrypt, so complete HTTPS deployment testing is better performed on a staging VPS.
+
+Install and prepare the application:
+
+```bash
+composer install
+npm install
+cp .env.example .env # Only when .env does not already exist.
+php artisan key:generate
+php artisan migrate
+npm run build
+touch docker/traefik/logs/access.json
+```
+
+Run the application, queue worker, and scheduler in separate terminals:
+
+```bash
+php artisan serve
+```
+
+```bash
+php artisan queue:work --tries=1
+```
+
+```bash
+php artisan schedule:work
+```
+
+The application is available at `http://127.0.0.1:8000` and the admin panel at `http://127.0.0.1:8000/admin`. Create an administrator with `php artisan admin:create` when needed.
+
+Verify the monitoring commands:
+
+```bash
+php artisan monitoring:collect
+php artisan usage:import-traefik
+php artisan schedule:list
+php artisan test
+```
+
+Collecting zero container snapshots is expected until a project has a deployed container. The empty access-log file prevents a false missing-log alert when Traefik is not running locally.
+
+## Live deployment runbook
+
+Configure production environment values, including:
+
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://panel.example.com
+HOSTING_BASE_DOMAIN=example.com
+HOSTING_URL_SCHEME=https
+TRAEFIK_ACCESS_LOG_PATH=/absolute/path/to/web_paas/docker/traefik/logs/access.json
+QUEUE_CONNECTION=database
+CACHE_STORE=database
+```
+
+Point the control-panel hostname and wildcard website hostname to the VPS:
+
+```text
+panel.example.com
+*.example.com
+```
+
+Prepare and start Traefik:
+
+```bash
+touch docker/traefik/letsencrypt/acme.json
+chmod 600 docker/traefik/letsencrypt/acme.json
+touch docker/traefik/logs/access.json
+chmod 664 docker/traefik/logs/access.json
+docker compose -f docker/traefik/compose.yaml up -d
+```
+
+Set `LETSENCRYPT_EMAIL` in `docker/traefik/.env` before starting Traefik. The Laravel scheduler user must be able to read `logs/access.json`; do not use broad `777` permissions.
+
+Start the managed database and deploy Laravel:
+
+```bash
+docker compose -f docker/database/compose.yaml up -d
+composer install --no-dev --optimize-autoloader
+npm ci
+npm run build
+php artisan migrate --force
+php artisan optimize:clear
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+Keep this queue worker supervised:
+
+```bash
+php artisan queue:work --sleep=2 --tries=1 --timeout=900
+```
+
+Run Laravel's scheduler every minute using cron or an equivalent service:
+
+```cron
+* * * * * cd /absolute/path/to/web_paas && php artisan schedule:run >> /dev/null 2>&1
+```
+
+After requesting a deployed customer website, verify Phase 6:
+
+```bash
+php artisan usage:import-traefik
+php artisan monitoring:collect
+php artisan schedule:list
+```
+
+Confirm that monthly bandwidth appears in the customer dashboard, container health and logs appear on project pages, monitoring alerts appear at `/admin/admin-alerts`, and Traefik writes JSON records to its access log.
+
 ## Production checklist
 
 1. Install current Docker Engine and the Compose plugin on the ARM64 VPS.
