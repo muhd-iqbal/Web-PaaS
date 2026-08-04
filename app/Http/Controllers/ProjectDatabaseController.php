@@ -52,7 +52,7 @@ class ProjectDatabaseController extends Controller
 
     public function destroy(Project $project, ProjectDatabaseManager $manager): RedirectResponse
     {
-        $this->authorize('update', $project);
+        $this->authorize('delete', $project);
         $database = $project->hostedDatabase()->firstOrFail();
 
         try {

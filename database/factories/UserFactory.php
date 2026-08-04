@@ -2,7 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\SubscriptionStatus;
 use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -33,6 +35,21 @@ class UserFactory extends Factory
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user): void {
+            if ($user->plan_id && ! $user->subscriptions()->exists()) {
+                Subscription::query()->create([
+                    'user_id' => $user->id,
+                    'plan_id' => $user->plan_id,
+                    'provider' => 'internal',
+                    'status' => SubscriptionStatus::Active,
+                    'current_period_start' => now(),
+                ]);
+            }
+        });
     }
 
     /**

@@ -13,7 +13,7 @@ class AuthenticationTest extends TestCase
 
     public function test_a_guest_can_register_with_an_active_plan(): void
     {
-        $plan = Plan::factory()->create();
+        $plan = Plan::factory()->create(['monthly_price' => 0]);
 
         $response = $this->post('/register', [
             'name' => 'Student User',

@@ -31,7 +31,10 @@ class UserForm
                 Select::make('plan_id')
                     ->relationship('plan', 'name')
                     ->searchable()
-                    ->preload(),
+                    ->preload()
+                    ->disabled()
+                    ->dehydrated(false)
+                    ->helperText('Plan access is synchronized from subscriptions.'),
                 Toggle::make('is_admin')
                     ->default(false)
                     ->required(),

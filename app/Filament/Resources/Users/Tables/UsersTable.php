@@ -34,6 +34,10 @@ class UsersTable
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('plan.name')
                     ->searchable(),
+                TextColumn::make('stripe_customer_id')
+                    ->label('Stripe customer')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('is_admin')
                     ->boolean(),
             ])

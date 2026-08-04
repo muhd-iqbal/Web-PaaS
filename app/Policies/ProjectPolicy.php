@@ -33,7 +33,7 @@ class ProjectPolicy
      */
     public function create(User $user): bool
     {
-        return $user->plan !== null && $user->projects()->count() < $user->plan->website_limit;
+        return $user->hasHostingAccess() && $user->plan !== null && $user->projects()->count() < $user->plan->website_limit;
     }
 
     /**
@@ -41,7 +41,7 @@ class ProjectPolicy
      */
     public function update(User $user, Project $project): bool
     {
-        return $project->user_id === $user->id;
+        return $project->user_id === $user->id && $user->canUseProject($project);
     }
 
     /**

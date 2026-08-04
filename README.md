@@ -1,6 +1,6 @@
 # Student Web Hosting Platform
 
-Phases 1–4 provide a Laravel 12 control panel with account registration, plan selection, project and file management, queued Docker deployment, and managed MariaDB databases for PHP projects.
+Phases 1–5 provide a Laravel 12 control panel with account registration, subscription billing, project and file management, queued Docker deployment, and managed MariaDB databases for PHP projects.
 
 ## Local application setup
 
@@ -75,4 +75,26 @@ php artisan schedule:work
 
 Production may use the normal once-per-minute cron entry instead. Accounts exceeding their shared database allowance are switched to read-only SQL privileges until an administrator increases the allowance or reduces/restores usage. Credentials are encrypted with Laravel's application key and injected into PHP containers on redeployment.
 
-Billing and general-purpose resource monitoring remain intentionally out of scope.
+## Stripe subscription billing
+
+Paid plans use Stripe Checkout and Stripe's hosted customer portal. Install dependencies with `composer install`, then configure:
+
+```dotenv
+STRIPE_KEY=pk_live_or_test_value
+STRIPE_SECRET=sk_live_or_test_value
+STRIPE_WEBHOOK_SECRET=whsec_value
+```
+
+Create a recurring monthly Stripe Price for each paid plan and enter its `price_...` identifier in the Filament plan editor. Configure the Stripe customer portal to allow payment-method changes, cancellations, and plan switching between the same configured prices.
+
+Register this HTTPS webhook endpoint in Stripe:
+
+```text
+https://your-control-panel.example.com/stripe/webhook
+```
+
+Subscribe it to `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`. Webhook signatures are verified and event IDs are processed idempotently. Paid limits are granted only after Stripe reports `active`, `trialing`, or `past_due`; terminal unpaid/canceled states revoke mutations and queue website suspension.
+
+The existing scheduler also expires internal free trials, so keep `php artisan schedule:work` or the production cron entry running. Billing setup can be tested with Stripe test-mode keys and the Stripe CLI before enabling live mode.
+
+General-purpose resource monitoring and alerting remain intentionally out of scope until Phase 6.

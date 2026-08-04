@@ -2,11 +2,13 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectDatabaseController;
 use App\Http\Controllers\ProjectDeploymentController;
 use App\Http\Controllers\ProjectFileController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Models\Plan;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +17,8 @@ Route::get('/', function () {
         'plans' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(),
     ]);
 })->name('home');
+
+Route::post('/stripe/webhook', StripeWebhookController::class)->name('stripe.webhook');
 
 Route::middleware('guest')->group(function (): void {
     Route::get('/register', [RegisteredUserController::class, 'create'])->name('register');
@@ -25,6 +29,10 @@ Route::middleware('guest')->group(function (): void {
 
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::post('/billing/subscribe/{plan}', [BillingController::class, 'subscribe'])->middleware('throttle:6,1')->name('billing.subscribe');
+    Route::post('/billing/portal', [BillingController::class, 'portal'])->middleware('throttle:6,1')->name('billing.portal');
+    Route::get('/billing/success', [BillingController::class, 'success'])->name('billing.success');
     Route::resource('projects', ProjectController::class);
     Route::post('/projects/{project}/deploy', [ProjectDeploymentController::class, 'deploy'])->name('projects.deploy');
     Route::post('/projects/{project}/restart', [ProjectDeploymentController::class, 'restart'])->name('projects.restart');

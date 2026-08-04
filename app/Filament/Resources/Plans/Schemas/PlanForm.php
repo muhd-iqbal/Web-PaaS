@@ -29,6 +29,21 @@ class PlanForm
                     ->minValue(0)
                     ->default(0)
                     ->prefix('$'),
+                TextInput::make('stripe_price_id')
+                    ->label('Stripe recurring price ID')
+                    ->unique(ignoreRecord: true)
+                    ->maxLength(255)
+                    ->helperText('Required for paid plans.'),
+                TextInput::make('currency')
+                    ->required()
+                    ->length(3)
+                    ->default('usd'),
+                TextInput::make('trial_days')
+                    ->label('Free trial days')
+                    ->required()
+                    ->numeric()
+                    ->minValue(0)
+                    ->default(0),
                 TextInput::make('website_limit')
                     ->required()
                     ->numeric()

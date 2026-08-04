@@ -41,6 +41,7 @@
                 @auth
                     <a href="{{ route('dashboard') }}">Dashboard</a>
                     <a href="{{ route('projects.index') }}">Projects</a>
+                    <a href="{{ route('billing.index') }}">Billing</a>
                     @if(auth()->user()->is_admin)<a href="/admin">Admin</a>@endif
                     <form method="POST" action="{{ route('logout') }}">@csrf<button class="button secondary" type="submit">Log out</button></form>
                 @else

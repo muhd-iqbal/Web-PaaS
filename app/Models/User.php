@@ -26,6 +26,7 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'plan_id',
+        'stripe_customer_id',
         'email_verified_at',
         'is_admin',
     ];
@@ -62,6 +63,37 @@ class User extends Authenticatable implements FilamentUser
     public function projects(): HasMany
     {
         return $this->hasMany(Project::class);
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    public function currentSubscription(): ?Subscription
+    {
+        return $this->subscriptions()->latest('id')->get()->first(fn (Subscription $subscription): bool => $subscription->grantsAccess());
+    }
+
+    public function hasHostingAccess(): bool
+    {
+        return $this->is_admin || $this->currentSubscription() !== null;
+    }
+
+    public function canUseProject(Project $project): bool
+    {
+        if ($this->is_admin) {
+            return true;
+        }
+
+        $planId = self::query()->whereKey($this->id)->value('plan_id');
+        $plan = $planId ? Plan::query()->find($planId) : null;
+
+        if (! $this->hasHostingAccess() || ! $plan || $project->user_id !== $this->id) {
+            return false;
+        }
+
+        return $this->projects()->where('id', '<=', $project->id)->count() <= $plan->website_limit;
     }
 
     public function canAccessPanel(Panel $panel): bool

@@ -27,6 +27,9 @@ class UserInfolist
                 TextEntry::make('plan.name')
                     ->label('Plan')
                     ->placeholder('-'),
+                TextEntry::make('stripe_customer_id')
+                    ->label('Stripe customer')
+                    ->placeholder('-'),
                 IconEntry::make('is_admin')
                     ->boolean(),
             ]);

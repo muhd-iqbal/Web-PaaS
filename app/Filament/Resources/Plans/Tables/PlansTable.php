@@ -23,6 +23,10 @@ class PlansTable
                 TextColumn::make('monthly_price')
                     ->money()
                     ->sortable(),
+                TextColumn::make('stripe_price_id')
+                    ->label('Stripe price')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('website_limit')
                     ->numeric()
                     ->sortable(),

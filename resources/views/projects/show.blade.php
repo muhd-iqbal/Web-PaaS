@@ -8,8 +8,10 @@
     $databaseLimitBytes = ($plan?->database_mb ?? 0) * 1048576;
     $databasePercent = $databaseLimitBytes > 0 ? min(100, ($accountDatabaseBytes / $databaseLimitBytes) * 100) : 0;
     $database = $project->hostedDatabase;
+    $canManage = auth()->user()->can('update', $project);
 @endphp
-<div class="page-head"><div><div class="eyebrow">Website project</div><h1>{{ $project->name }}</h1><p class="muted">{{ $project->slug }}</p></div>@if($project->status !== \App\Enums\ProjectStatus::Deploying)<div class="actions"><a class="button secondary" href="{{ route('projects.edit', $project) }}">Edit settings</a><form method="POST" action="{{ route('projects.destroy', $project) }}" onsubmit="return confirm('Delete this project and all of its files?')">@csrf @method('DELETE')<button class="button danger" type="submit">Delete project</button></form></div>@endif</div>
+<div class="page-head"><div><div class="eyebrow">Website project</div><h1>{{ $project->name }}</h1><p class="muted">{{ $project->slug }}</p></div>@if($project->status !== \App\Enums\ProjectStatus::Deploying)<div class="actions">@if($canManage)<a class="button secondary" href="{{ route('projects.edit', $project) }}">Edit settings</a>@endif<form method="POST" action="{{ route('projects.destroy', $project) }}" onsubmit="return confirm('Delete this project and all of its files?')">@csrf @method('DELETE')<button class="button danger" type="submit">Delete project</button></form></div>@endif</div>
+@if(!$canManage)<div class="alert" style="border-color:#fed7aa;background:#fff7ed;color:#9a3412">This project is outside your active plan allowance. You can view, download, or delete resources, but an active plan with sufficient website capacity is required to make changes.</div>@endif
 
 <div class="grid two" style="margin-bottom:28px">
     <div class="card"><div class="muted small">Project files</div><div class="stat">{{ number_format($project->file_count) }}</div><p class="muted">{{ number_format($project->storage_bytes / 1048576, 2) }} MB used by this website.</p></div>
@@ -23,7 +25,7 @@
     @if(!$database)
         @if(($plan?->database_mb ?? 0) > 0)
             <p class="muted">Create one private database for this PHP project. Your plan's {{ number_format($plan->database_mb) }} MB allowance is shared by all databases on the account.</p>
-            @if($project->status !== \App\Enums\ProjectStatus::Deploying)<form method="POST" action="{{ route('projects.database.store', $project) }}">@csrf<button class="button" type="submit">Create database</button></form>@endif
+            @if($canManage && $project->status !== \App\Enums\ProjectStatus::Deploying)<form method="POST" action="{{ route('projects.database.store', $project) }}">@csrf<button class="button" type="submit">Create database</button></form>@endif
         @else<p class="muted">Your current plan does not include database hosting.</p>@endif
     @else
         <div class="grid two" style="margin-bottom:20px">
@@ -45,7 +47,7 @@
         @endif
         <div class="actions" style="margin-top:18px">
             <form method="POST" action="{{ route('projects.database.refresh', $project) }}">@csrf<button class="button secondary" type="submit">Refresh usage</button></form>
-            @if($project->status !== \App\Enums\ProjectStatus::Deploying && $database->status !== \App\Enums\ProjectDatabaseStatus::Failed)<form method="POST" action="{{ route('projects.database.rotate', $project) }}" onsubmit="return confirm('Rotate this password? The website must be redeployed afterward.')">@csrf<button class="button secondary" type="submit">Rotate password</button></form>@endif
+            @if($canManage && $project->status !== \App\Enums\ProjectStatus::Deploying && $database->status !== \App\Enums\ProjectDatabaseStatus::Failed)<form method="POST" action="{{ route('projects.database.rotate', $project) }}" onsubmit="return confirm('Rotate this password? The website must be redeployed afterward.')">@csrf<button class="button secondary" type="submit">Rotate password</button></form>@endif
             @if($project->status !== \App\Enums\ProjectStatus::Deploying)<form method="POST" action="{{ route('projects.database.destroy', $project) }}" onsubmit="return confirm('Permanently delete this database and all its data?')">@csrf @method('DELETE')<button class="button danger" type="submit">Delete database</button></form>@endif
         </div>
     @endif
@@ -58,10 +60,10 @@
     @if($project->last_deployment_error)<div class="alert" style="border-color:#fecaca;background:#fef2f2;color:#b91c1c">{{ $project->last_deployment_error }}</div>@endif
     @error('deployment')<div class="error" style="margin-bottom:16px">{{ $message }}</div>@enderror
     <div class="actions">
-        @if($project->file_count > 0 && $project->status !== \App\Enums\ProjectStatus::Deploying)
+        @if($canManage && $project->file_count > 0 && $project->status !== \App\Enums\ProjectStatus::Deploying)
             <form method="POST" action="{{ route('projects.deploy', $project) }}">@csrf<button class="button" type="submit">{{ $project->deployed_at ? 'Redeploy website' : 'Deploy website' }}</button></form>
         @endif
-        @if($project->container_name && $project->status === \App\Enums\ProjectStatus::Active)
+        @if($canManage && $project->container_name && $project->status === \App\Enums\ProjectStatus::Active)
             <form method="POST" action="{{ route('projects.restart', $project) }}" onsubmit="return confirm('Restart this website container?')">@csrf<button class="button secondary" type="submit">Restart container</button></form>
         @endif
         @if($project->status === \App\Enums\ProjectStatus::Deploying)<span class="muted">A queued operation is in progress.</span>@endif
@@ -71,7 +73,8 @@
 <div class="card" style="margin-bottom:28px">
     <div class="eyebrow">Upload website</div><h2>{{ $project->file_count ? 'Replace website files' : 'Upload website files' }}</h2>
     <p class="muted">Upload one ZIP containing a root <strong>{{ $project->runtime->value === 'php' ? 'index.php or index.html' : 'index.html' }}</strong>. A single wrapping folder is removed automatically. A successful upload replaces the current files.</p>
-    @if($project->status === \App\Enums\ProjectStatus::Deploying)<p class="muted">File replacement is available when the current operation finishes.</p>
+    @if(!$canManage)<p class="muted">Activate sufficient plan capacity to replace website files.</p>
+    @elseif($project->status === \App\Enums\ProjectStatus::Deploying)<p class="muted">File replacement is available when the current operation finishes.</p>
     @else<form method="POST" action="{{ route('projects.files.store', $project) }}" enctype="multipart/form-data">@csrf
         <div class="field"><label for="archive">Website ZIP</label><input id="archive" name="archive" type="file" accept=".zip,application/zip" required><div class="muted small">Maximum ZIP: {{ $plan?->max_upload_mb ?? 0 }} MB · Extracted: {{ $plan?->max_extracted_mb ?? 0 }} MB · Files: {{ number_format($plan?->max_file_count ?? 0) }}</div>@error('archive')<div class="error">{{ $message }}</div>@enderror</div>
         <button class="button" type="submit">Validate and save files</button>

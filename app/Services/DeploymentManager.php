@@ -73,6 +73,13 @@ class DeploymentManager
                     'last_deployment_error' => null,
                 ]);
             });
+
+            $project->refresh()->load('user.plan');
+
+            if ($deployment->type !== DeploymentType::Suspend && ! $project->user->canUseProject($project)) {
+                $this->runtime->stop($project);
+                $project->update(['status' => ProjectStatus::Suspended]);
+            }
         } catch (Throwable $exception) {
             $message = Str::limit($exception->getMessage() ?: 'The deployment failed unexpectedly.', 2000, '');
 

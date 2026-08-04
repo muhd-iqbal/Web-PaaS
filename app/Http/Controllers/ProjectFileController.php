@@ -37,7 +37,7 @@ class ProjectFileController extends Controller
 
     public function destroy(Project $project, ProjectFile $projectFile, ProjectArchiveManager $manager): RedirectResponse
     {
-        $this->authorize('update', $project);
+        $this->authorize('delete', $project);
 
         if ($project->status === ProjectStatus::Deploying) {
             throw ValidationException::withMessages(['file' => 'Wait for the current deployment to finish before deleting files.']);

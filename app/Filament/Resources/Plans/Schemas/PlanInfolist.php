@@ -19,6 +19,11 @@ class PlanInfolist
                     ->columnSpanFull(),
                 TextEntry::make('monthly_price')
                     ->money(),
+                TextEntry::make('stripe_price_id')
+                    ->label('Stripe price ID')
+                    ->placeholder('-'),
+                TextEntry::make('currency'),
+                TextEntry::make('trial_days')->numeric(),
                 TextEntry::make('website_limit')
                     ->numeric(),
                 TextEntry::make('storage_mb')

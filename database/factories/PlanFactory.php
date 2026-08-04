@@ -22,6 +22,8 @@ class PlanFactory extends Factory
             'slug' => fake()->unique()->slug(2),
             'description' => fake()->sentence(),
             'monthly_price' => fake()->randomFloat(2, 0, 30),
+            'currency' => 'usd',
+            'trial_days' => 0,
             'website_limit' => fake()->numberBetween(1, 5),
             'storage_mb' => fake()->randomElement([500, 2048, 5120]),
             'bandwidth_mb' => fake()->randomElement([5120, 20480, 51200]),

@@ -70,12 +70,12 @@ class ProjectsTable
                 EditAction::make(),
                 Action::make('redeploy')
                     ->icon('heroicon-o-cloud-arrow-up')
-                    ->visible(fn (Project $record): bool => $record->file_count > 0 && $record->status !== ProjectStatus::Deploying)
+                    ->visible(fn (Project $record): bool => $record->file_count > 0 && $record->status !== ProjectStatus::Deploying && $record->user->canUseProject($record))
                     ->requiresConfirmation()
                     ->action(fn (Project $record) => self::queueAction($record, 'deploy')),
                 Action::make('restart')
                     ->icon('heroicon-o-arrow-path')
-                    ->visible(fn (Project $record): bool => filled($record->container_name) && $record->status === ProjectStatus::Active)
+                    ->visible(fn (Project $record): bool => filled($record->container_name) && $record->status === ProjectStatus::Active && $record->user->canUseProject($record))
                     ->requiresConfirmation()
                     ->action(fn (Project $record) => self::queueAction($record, 'restart')),
                 Action::make('suspend')

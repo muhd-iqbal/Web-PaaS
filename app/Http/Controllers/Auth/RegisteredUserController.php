@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Exceptions\BillingException;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\User;
+use App\Services\BillingManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +23,7 @@ class RegisteredUserController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, BillingManager $billing): RedirectResponse
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -34,13 +36,22 @@ class RegisteredUserController extends Controller
         $user = User::query()->create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'plan_id' => $plan->id,
             'password' => $validated['password'],
         ]);
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route('dashboard');
+        try {
+            if ($plan->isFree()) {
+                $billing->activateFreePlan($user, $plan);
+
+                return redirect()->route('dashboard');
+            }
+
+            return redirect()->away($billing->checkoutUrl($user, $plan));
+        } catch (BillingException $exception) {
+            return redirect()->route('billing.index')->withErrors(['billing' => $exception->getMessage()]);
+        }
     }
 }

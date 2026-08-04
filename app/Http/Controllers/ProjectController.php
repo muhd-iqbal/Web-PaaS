@@ -28,6 +28,8 @@ class ProjectController extends Controller
      */
     public function create(): View
     {
+        $this->authorize('create', Project::class);
+
         return view('projects.create', ['runtimes' => ProjectRuntime::cases()]);
     }
 

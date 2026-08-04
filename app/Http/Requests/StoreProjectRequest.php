@@ -44,8 +44,8 @@ class StoreProjectRequest extends FormRequest
             function (Validator $validator): void {
                 $user = $this->user()->loadMissing('plan');
 
-                if (! $user->plan) {
-                    $validator->errors()->add('plan', 'Choose a hosting plan before creating a project.');
+                if (! $user->hasHostingAccess() || ! $user->plan) {
+                    $validator->errors()->add('plan', 'Activate a hosting subscription before creating a project.');
                 } elseif ($user->projects()->count() >= $user->plan->website_limit) {
                     $validator->errors()->add('plan', 'Your hosting plan website limit has been reached.');
                 }
