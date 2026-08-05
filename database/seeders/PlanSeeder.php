@@ -32,7 +32,7 @@ class PlanSeeder extends Seeder
                 'sort_order' => 20,
             ],
             [
-                'name' => 'Developer', 'slug' => 'developer',
+                'name' => 'Fresh Grad', 'slug' => 'developer',
                 'description' => 'Multiple sites and higher limits for active development.',
                 'monthly_price' => 15, 'website_limit' => 5, 'storage_mb' => 10240,
                 'bandwidth_mb' => 102400, 'database_mb' => 1024, 'max_upload_mb' => 250,
