@@ -84,7 +84,13 @@ HOSTING_CONTROL_PANEL_UPSTREAM=http://host.docker.internal:8080
 TRAEFIK_CERTIFICATE_RESOLVER=letsencrypt
 ```
 
-The control-panel route is supplied to Traefik as an inline Docker Compose config. Compose substitutes these environment values when the container is created, so changing the domain only requires updating `docker/traefik/.env` and recreating Traefik. The upstream must be a private host service; port 8080 must not be allowed through the VPS or cloud firewall.
+Generate the domain-specific dynamic route before starting or recreating Traefik:
+
+```bash
+sh docker/traefik/render-control-panel-config.sh docker/traefik/.env
+```
+
+The generated `docker/traefik/dynamic/control-panel.yaml` is ignored by Git and its parent directory is mounted read-only into Traefik. Changing the domain requires updating `docker/traefik/.env`, rerunning the generator, and updating Laravel, Nginx, and DNS. The upstream must be a private host service; port 8080 must not be allowed through the VPS or cloud firewall.
 
 Start the managed database and deploy Laravel:
 

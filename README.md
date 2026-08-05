@@ -41,6 +41,7 @@ cp .env.example .env
 # Set LETSENCRYPT_EMAIL and HOSTING_CONTROL_PANEL_HOSTNAME in .env
 touch letsencrypt/acme.json
 chmod 600 letsencrypt/acme.json
+sh render-control-panel-config.sh .env
 docker compose up -d
 ```
 

@@ -1,0 +1,14 @@
+http:
+  routers:
+    control-panel:
+      rule: "Host(`panel.example.com`)"
+      entryPoints:
+        - websecure
+      service: control-panel
+      tls:
+        certResolver: letsencrypt
+  services:
+    control-panel:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8080"
