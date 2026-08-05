@@ -3,6 +3,7 @@ services:
     image: traefik:v3.6
     container_name: hosting-traefik
     restart: unless-stopped
+    user: "0:0"
     read_only: true
     security_opt:
       - no-new-privileges:true

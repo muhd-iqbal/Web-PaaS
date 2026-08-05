@@ -39,8 +39,10 @@ Start Traefik:
 cd docker/traefik
 cp .env.example .env
 # Set LETSENCRYPT_EMAIL and HOSTING_CONTROL_PANEL_HOSTNAME in .env
-touch letsencrypt/acme.json
-chmod 600 letsencrypt/acme.json
+sudo install -d -o root -g root -m 700 letsencrypt
+sudo touch letsencrypt/acme.json
+sudo chown root:root letsencrypt/acme.json
+sudo chmod 600 letsencrypt/acme.json
 sh render-control-panel-config.sh .env
 docker compose up -d
 ```

@@ -68,14 +68,18 @@ panel.example.com
 Prepare and start Traefik:
 
 ```bash
-touch docker/traefik/letsencrypt/acme.json
-chmod 600 docker/traefik/letsencrypt/acme.json
-touch docker/traefik/logs/access.json
-chmod 664 docker/traefik/logs/access.json
+sudo install -d -o root -g root -m 700 docker/traefik/letsencrypt
+sudo touch docker/traefik/letsencrypt/acme.json
+sudo chown root:root docker/traefik/letsencrypt/acme.json
+sudo chmod 600 docker/traefik/letsencrypt/acme.json
+sudo install -d -o root -g www-data -m 750 docker/traefik/logs
+sudo touch docker/traefik/logs/access.json
+sudo chown root:www-data docker/traefik/logs/access.json
+sudo chmod 640 docker/traefik/logs/access.json
 docker compose -f docker/traefik/compose.yaml up -d
 ```
 
-Create `docker/traefik/.env` from its example and set `LETSENCRYPT_EMAIL`, `HOSTING_CONTROL_PANEL_HOSTNAME`, and the optional internal upstream before starting Traefik. The Laravel scheduler user must be able to read `logs/access.json`; do not use broad `777` permissions.
+Create `docker/traefik/.env` from its example and set `LETSENCRYPT_EMAIL`, `HOSTING_CONTROL_PANEL_HOSTNAME`, and the optional internal upstream before starting Traefik. Traefik runs as UID `0` with all Linux capabilities dropped, so its writable directory and files must be owned by `root`; it cannot bypass a mode `600` file owned by the login user. The Laravel scheduler user must be a member of `www-data` to read `logs/access.json`. Do not use broad `777` permissions.
 
 ```dotenv
 LETSENCRYPT_EMAIL=admin@example.com
@@ -133,7 +137,7 @@ Confirm that monthly bandwidth appears in the customer dashboard, container heal
 1. Install current Docker Engine and the Compose plugin on the ARM64 VPS.
 2. Allow inbound TCP 80 and 443 and keep the Docker daemon/socket inaccessible from the public network.
 3. Point the hosting base domain and its wildcard DNS record to the VPS.
-4. Configure `docker/traefik/.env`, create `letsencrypt/acme.json` with mode `600`, and start the Traefik Compose service.
+4. Configure `docker/traefik/.env`, create root-owned `letsencrypt/acme.json` with mode `600`, and start the Traefik Compose service.
 5. Configure Laravel's `HOSTING_*`, `TRAEFIK_*`, database, and database-backed queue values.
 6. Run migrations and keep a Laravel queue worker supervised.
 7. Verify Docker access as the queue-worker user with `docker info`.
