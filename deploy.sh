@@ -126,6 +126,7 @@ if [[ $mode == deploy ]]; then
     sudo chown -R "$(id -un):www-data" storage bootstrap/cache
     sudo find storage bootstrap/cache -type d -exec chmod 2775 {} +
     sudo find storage bootstrap/cache -type f -exec chmod 0664 {} +
+    sudo install -d -o "$(id -un)" -g www-data -m 0770 storage/app/docker-config
     ok 'Dependencies, assets, key, and Laravel permissions are ready.'
 
     heading 'Host firewall and Traefik'

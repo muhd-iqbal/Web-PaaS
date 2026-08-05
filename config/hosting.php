@@ -7,6 +7,7 @@ return [
         'base_domain' => env('HOSTING_BASE_DOMAIN', 'sites.example.com'),
         'scheme' => env('HOSTING_URL_SCHEME', 'https'),
         'docker_binary' => env('DOCKER_BINARY', 'docker'),
+        'docker_config' => env('DOCKER_CONFIG') ?: storage_path('app/docker-config'),
         'traefik_container' => env('TRAEFIK_CONTAINER_NAME', 'hosting-traefik'),
         'certificate_resolver' => env('TRAEFIK_CERTIFICATE_RESOLVER', 'letsencrypt'),
         'static_image' => env('HOSTING_STATIC_IMAGE', 'student-hosting/static:latest'),
