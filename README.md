@@ -21,6 +21,14 @@ ZIPs are validated for safe paths, regular files, permitted extensions and MIME 
 
 ## Docker deployment setup
 
+On the production VPS, deploy and verify the repository with one idempotent command:
+
+```bash
+./deploy.sh
+```
+
+It validates the production environment files, installs locked dependencies, builds assets, repairs scoped permissions, starts MariaDB and Traefik, migrates and caches Laravel, and diagnoses ports, DNS, HTTP, HTTPS, and recent ACME errors. Each run writes a timestamped log under `storage/logs`. Use `./deploy.sh --check` for diagnostics without changing services or configuration. OCI security-list rules and public DNS remain operator-controlled prerequisites.
+
 The VPS needs Docker Engine with the Compose plugin. Configure these Laravel environment values:
 
 ```dotenv

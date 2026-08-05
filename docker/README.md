@@ -45,6 +45,14 @@ Collecting zero container snapshots is expected until a project has a deployed c
 
 ## Live deployment runbook
 
+After configuring `.env`, `docker/traefik/.env`, and `docker/database/.env`, run the deployment helper from the repository root:
+
+```bash
+./deploy.sh
+```
+
+It performs the repository-controlled steps below and writes a timestamped log under `storage/logs`. Use `./deploy.sh --check` to repeat only the health and diagnostic checks.
+
 Configure production environment values, including:
 
 ```dotenv
