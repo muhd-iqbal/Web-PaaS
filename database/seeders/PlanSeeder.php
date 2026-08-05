@@ -19,7 +19,7 @@ class PlanSeeder extends Seeder
                 'monthly_price' => 0, 'website_limit' => 1, 'storage_mb' => 250,
                 'bandwidth_mb' => 2048, 'database_mb' => 0, 'max_upload_mb' => 25,
                 'max_extracted_mb' => 100, 'max_file_count' => 1000,
-                'trial_days' => 14, 'currency' => 'myr',
+                'trial_days' => 7, 'currency' => 'myr',
                 'sort_order' => 10,
             ],
             [
