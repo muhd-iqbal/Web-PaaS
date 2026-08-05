@@ -233,6 +233,16 @@ done
     && ok "Public HTTPS passed: https://$panel_hostname/up" \
     || issue "Public HTTPS returned HTTP ${https_status:-000}."
 
+if [[ $https_status == 200 ]]; then
+    admin_html=$(curl --silent --show-error --location --connect-timeout 5 --max-time 20 \
+        "https://$panel_hostname/admin" 2>/dev/null || true)
+    if grep -Fq "http://$panel_hostname" <<< "$admin_html"; then
+        issue 'The admin page still generates insecure HTTP URLs; deploy the trusted-proxy configuration and clear Laravel caches.'
+    else
+        ok 'The admin page contains no mixed-content URLs for its hostname.'
+    fi
+fi
+
 heading 'Traefik diagnosis (last 200 lines)'
 traefik_logs=$(docker logs --tail 200 hosting-traefik 2>&1 || true)
 printf '%s\n' "$traefik_logs"

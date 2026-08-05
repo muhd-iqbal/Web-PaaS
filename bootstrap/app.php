@@ -11,6 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // The control panel is reachable only through Traefik. Trust the immediate
+        // proxy so Laravel honors its forwarded host, port, and HTTPS scheme.
+        $middleware->trustProxies(at: '*');
+
         $middleware->validateCsrfTokens(except: ['stripe/webhook']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
