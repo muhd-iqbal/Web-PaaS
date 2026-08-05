@@ -60,6 +60,28 @@ class ProjectFileManagementTest extends TestCase
         Storage::disk('project_files')->assertMissing($project->storageDirectory().'/assets/app.js');
     }
 
+    public function test_macos_metadata_is_ignored_during_upload(): void
+    {
+        $project = $this->project(['runtime' => ProjectRuntime::Php]);
+        $archive = $this->zip([
+            'test_php/index.php' => '<?php echo "Hello";',
+            'test_php/.DS_Store' => "\0macOS metadata",
+            '__MACOSX/test_php/._index.php' => "\0AppleDouble metadata",
+        ]);
+
+        $this->actingAs($project->user)
+            ->post(route('projects.files.store', $project), ['archive' => $archive])
+            ->assertRedirect(route('projects.show', $project))
+            ->assertSessionHasNoErrors();
+
+        $project->refresh();
+        $this->assertSame(1, $project->file_count);
+        $this->assertSame(['index.php'], $project->files()->pluck('path')->all());
+        Storage::disk('project_files')->assertExists($project->storageDirectory().'/index.php');
+        Storage::disk('project_files')->assertMissing($project->storageDirectory().'/__MACOSX');
+        Storage::disk('project_files')->assertMissing($project->storageDirectory().'/.DS_Store');
+    }
+
     public function test_zip_path_traversal_is_rejected_without_replacing_existing_files(): void
     {
         $project = $this->project();

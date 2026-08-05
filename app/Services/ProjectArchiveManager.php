@@ -164,6 +164,11 @@ class ProjectArchiveManager
             }
 
             $path = $this->normalizePath($stat['name']);
+
+            if ($this->isIgnoredOperatingSystemMetadata($path)) {
+                continue;
+            }
+
             $isDirectory = str_ends_with(str_replace('\\', '/', $stat['name']), '/');
             $this->assertRegularEntry($zip, $index, $isDirectory, $path);
 
@@ -238,6 +243,16 @@ class ProjectArchiveManager
         }
 
         return $normalized;
+    }
+
+    private function isIgnoredOperatingSystemMetadata(string $path): bool
+    {
+        $segments = array_map('strtolower', explode('/', $path));
+        $basename = end($segments);
+
+        return in_array('__macosx', $segments, true)
+            || $basename === '.ds_store'
+            || str_starts_with($basename, '._');
     }
 
     private function assertRegularEntry(ZipArchive $zip, int $index, bool $isDirectory, string $path): void
