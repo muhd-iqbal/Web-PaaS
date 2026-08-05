@@ -18,7 +18,7 @@ class PlanInfolist
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('monthly_price')
-                    ->money(),
+                    ->money('MYR'),
                 TextEntry::make('stripe_price_id')
                     ->label('Stripe price ID')
                     ->placeholder('-'),

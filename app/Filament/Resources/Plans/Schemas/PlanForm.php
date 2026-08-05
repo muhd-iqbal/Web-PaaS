@@ -28,7 +28,7 @@ class PlanForm
                     ->numeric()
                     ->minValue(0)
                     ->default(0)
-                    ->prefix('$'),
+                    ->prefix('RM'),
                 TextInput::make('stripe_price_id')
                     ->label('Stripe recurring price ID')
                     ->unique(ignoreRecord: true)
@@ -37,7 +37,7 @@ class PlanForm
                 TextInput::make('currency')
                     ->required()
                     ->length(3)
-                    ->default('usd'),
+                    ->default('myr'),
                 TextInput::make('trial_days')
                     ->label('Free trial days')
                     ->required()

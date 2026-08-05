@@ -24,11 +24,13 @@ class BillingTest extends TestCase
     public function test_billing_page_renders_for_an_authenticated_user(): void
     {
         $user = User::factory()->create();
+        Plan::factory()->create(['monthly_price' => 5, 'currency' => 'myr']);
 
         $this->actingAs($user)
             ->get(route('billing.index'))
             ->assertOk()
-            ->assertSee('Hosting subscription');
+            ->assertSee('Hosting subscription')
+            ->assertSee('RM 5.00');
     }
 
     private FakeBillingGateway $gateway;

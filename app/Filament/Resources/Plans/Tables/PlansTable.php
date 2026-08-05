@@ -21,7 +21,7 @@ class PlansTable
                 TextColumn::make('slug')
                     ->searchable(),
                 TextColumn::make('monthly_price')
-                    ->money()
+                    ->money('MYR')
                     ->sortable(),
                 TextColumn::make('stripe_price_id')
                     ->label('Stripe price')

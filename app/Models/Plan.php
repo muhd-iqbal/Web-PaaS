@@ -53,4 +53,13 @@ class Plan extends Model
     {
         return (float) $this->monthly_price <= 0;
     }
+
+    public function formattedMonthlyPrice(): string
+    {
+        $amount = number_format((float) $this->monthly_price, 2);
+
+        return strtolower($this->currency) === 'myr'
+            ? "RM {$amount}"
+            : strtoupper($this->currency)." {$amount}";
+    }
 }
