@@ -30,7 +30,7 @@ php artisan queue:work --tries=1
 php artisan schedule:work
 ```
 
-The application is available at `http://127.0.0.1:8000` and the admin panel at `http://127.0.0.1:8000/admin`. Create an administrator with `php artisan admin:create` when needed.
+The application is available at `http://127.0.0.1:8000` and the admin panel at `http://127.0.0.1:8000/admin`. Create an administrator with `php artisan app:create-admin` when needed.
 
 Verify the monitoring commands:
 
@@ -51,7 +51,7 @@ Configure production environment values, including:
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://panel.example.com
-HOSTING_BASE_DOMAIN=example.com
+HOSTING_BASE_DOMAIN=sites.example.com
 HOSTING_URL_SCHEME=https
 TRAEFIK_ACCESS_LOG_PATH=/absolute/path/to/web_paas/docker/traefik/logs/access.json
 QUEUE_CONNECTION=database
@@ -62,7 +62,7 @@ Point the control-panel hostname and wildcard website hostname to the VPS:
 
 ```text
 panel.example.com
-*.example.com
+*.sites.example.com
 ```
 
 Prepare and start Traefik:
@@ -75,7 +75,16 @@ chmod 664 docker/traefik/logs/access.json
 docker compose -f docker/traefik/compose.yaml up -d
 ```
 
-Set `LETSENCRYPT_EMAIL` in `docker/traefik/.env` before starting Traefik. The Laravel scheduler user must be able to read `logs/access.json`; do not use broad `777` permissions.
+Create `docker/traefik/.env` from its example and set `LETSENCRYPT_EMAIL`, `HOSTING_CONTROL_PANEL_HOSTNAME`, and the optional internal upstream before starting Traefik. The Laravel scheduler user must be able to read `logs/access.json`; do not use broad `777` permissions.
+
+```dotenv
+LETSENCRYPT_EMAIL=admin@example.com
+HOSTING_CONTROL_PANEL_HOSTNAME=panel.example.com
+HOSTING_CONTROL_PANEL_UPSTREAM=http://host.docker.internal:8080
+TRAEFIK_CERTIFICATE_RESOLVER=letsencrypt
+```
+
+The control-panel route is supplied to Traefik as an inline Docker Compose config. Compose substitutes these environment values when the container is created, so changing the domain only requires updating `docker/traefik/.env` and recreating Traefik. The upstream must be a private host service; port 8080 must not be allowed through the VPS or cloud firewall.
 
 Start the managed database and deploy Laravel:
 

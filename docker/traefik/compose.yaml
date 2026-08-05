@@ -16,6 +16,8 @@ services:
       - --api.dashboard=false
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
       - --entrypoints.web.address=:80
       - --entrypoints.web.http.redirections.entrypoint.to=websecure
       - --entrypoints.web.http.redirections.entrypoint.scheme=https
@@ -28,6 +30,8 @@ services:
       - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:?Set LETSENCRYPT_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
+    extra_hosts:
+      - host.docker.internal:host-gateway
     ports:
       - 80:80
       - 443:443
@@ -35,3 +39,24 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./letsencrypt:/letsencrypt
       - ./logs:/logs
+    configs:
+      - source: control_panel
+        target: /etc/traefik/dynamic/control-panel.yaml
+
+configs:
+  control_panel:
+    content: |
+      http:
+        routers:
+          control-panel:
+            rule: "Host(`${HOSTING_CONTROL_PANEL_HOSTNAME:?Set HOSTING_CONTROL_PANEL_HOSTNAME}`)"
+            entryPoints:
+              - websecure
+            service: control-panel
+            tls:
+              certResolver: ${TRAEFIK_CERTIFICATE_RESOLVER:-letsencrypt}
+        services:
+          control-panel:
+            loadBalancer:
+              servers:
+                - url: "${HOSTING_CONTROL_PANEL_UPSTREAM:-http://host.docker.internal:8080}"

@@ -38,11 +38,13 @@ Start Traefik:
 ```bash
 cd docker/traefik
 cp .env.example .env
-# Set LETSENCRYPT_EMAIL in .env
+# Set LETSENCRYPT_EMAIL and HOSTING_CONTROL_PANEL_HOSTNAME in .env
 touch letsencrypt/acme.json
 chmod 600 letsencrypt/acme.json
 docker compose up -d
 ```
+
+Traefik routes the configured control-panel hostname to host Nginx at `http://host.docker.internal:8080` by default. Run production Nginx on that internal port and keep it closed in both the VPS and cloud firewalls. To change the panel domain later, update `HOSTING_CONTROL_PANEL_HOSTNAME` in `docker/traefik/.env`, update Laravel's `APP_URL`, update DNS, and recreate Traefik.
 
 Run Laravel's queue continuously under systemd or Supervisor:
 
