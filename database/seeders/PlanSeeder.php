@@ -20,6 +20,7 @@ class PlanSeeder extends Seeder
                 'bandwidth_mb' => 2048, 'database_mb' => 0, 'max_upload_mb' => 25,
                 'max_extracted_mb' => 100, 'max_file_count' => 1000,
                 'trial_days' => 7, 'currency' => 'myr',
+                'access_days' => 7,
                 'sort_order' => 10,
             ],
             [
@@ -29,6 +30,7 @@ class PlanSeeder extends Seeder
                 'bandwidth_mb' => 20480, 'database_mb' => 200, 'max_upload_mb' => 100,
                 'max_extracted_mb' => 500, 'max_file_count' => 5000,
                 'currency' => 'myr',
+                'access_days' => 30,
                 'sort_order' => 20,
             ],
             [
@@ -38,6 +40,7 @@ class PlanSeeder extends Seeder
                 'bandwidth_mb' => 102400, 'database_mb' => 1024, 'max_upload_mb' => 250,
                 'max_extracted_mb' => 1024, 'max_file_count' => 15000,
                 'currency' => 'myr',
+                'access_days' => 30,
                 'sort_order' => 30,
             ],
         ];

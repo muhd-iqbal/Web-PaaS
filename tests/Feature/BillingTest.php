@@ -3,35 +3,20 @@
 namespace Tests\Feature;
 
 use App\Contracts\BillingGateway;
-use App\Enums\ProjectStatus;
+use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionStatus;
-use App\Jobs\RunProjectDeployment;
-use App\Models\BillingWebhookEvent;
+use App\Models\Payment;
 use App\Models\Plan;
-use App\Models\Project;
 use App\Models\Subscription;
 use App\Models\User;
 use App\Services\BillingManager;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use Tests\Fakes\FakeBillingGateway;
 use Tests\TestCase;
 
 class BillingTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_billing_page_renders_for_an_authenticated_user(): void
-    {
-        $user = User::factory()->create();
-        Plan::factory()->create(['monthly_price' => 5, 'currency' => 'myr']);
-
-        $this->actingAs($user)
-            ->get(route('billing.index'))
-            ->assertOk()
-            ->assertSee('Hosting subscription')
-            ->assertSee('RM 5.00');
-    }
 
     private FakeBillingGateway $gateway;
 
@@ -43,6 +28,19 @@ class BillingTest extends TestCase
         $this->app->instance(BillingGateway::class, $this->gateway);
     }
 
+    public function test_billing_page_describes_one_off_toyyibpay_access(): void
+    {
+        $user = User::factory()->create();
+        Plan::factory()->create(['monthly_price' => 5, 'currency' => 'myr', 'access_days' => 30]);
+
+        $this->actingAs($user)
+            ->get(route('billing.index'))
+            ->assertOk()
+            ->assertSee('Prepaid hosting')
+            ->assertSee('one-off payment')
+            ->assertSee('RM 5.00');
+    }
+
     public function test_a_free_trial_grants_access_once_and_expires(): void
     {
         $user = User::factory()->create(['plan_id' => null]);
@@ -52,7 +50,6 @@ class BillingTest extends TestCase
 
         $this->assertSame(SubscriptionStatus::Trialing, $subscription->status);
         $this->assertTrue($user->refresh()->hasHostingAccess());
-        $this->assertSame($plan->id, $user->plan_id);
 
         $subscription->update(['current_period_end' => now()->subMinute()]);
         $this->assertSame(1, $billing->expireInternalTrials());
@@ -62,26 +59,25 @@ class BillingTest extends TestCase
         $this->actingAs($user)->post(route('billing.subscribe', $plan))->assertSessionHasErrors('billing');
     }
 
-    public function test_paid_checkout_does_not_grant_access_before_a_webhook(): void
+    public function test_paid_checkout_creates_a_pending_payment_without_granting_access(): void
     {
         $user = User::factory()->create(['plan_id' => null]);
-        $plan = Plan::factory()->create([
-            'monthly_price' => 5,
-            'stripe_price_id' => 'price_student',
-        ]);
+        $plan = Plan::factory()->create(['monthly_price' => 5, 'access_days' => 30]);
 
         $this->actingAs($user)
             ->post(route('billing.subscribe', $plan))
             ->assertRedirect($this->gateway->checkout);
 
+        $payment = Payment::query()->sole();
+        $this->assertSame(PaymentStatus::Pending, $payment->status);
+        $this->assertSame('5.00', $payment->amount);
         $this->assertFalse($user->refresh()->hasHostingAccess());
-        $this->assertNull($user->plan_id);
-        $this->assertSame([['user_id' => $user->id, 'plan_id' => $plan->id]], $this->gateway->checkouts);
+        $this->assertSame($payment->id, $this->gateway->checkouts[0]['payment_id']);
     }
 
-    public function test_paid_registration_creates_the_account_then_redirects_to_checkout(): void
+    public function test_paid_registration_redirects_to_one_off_checkout(): void
     {
-        $plan = Plan::factory()->create(['monthly_price' => 5, 'stripe_price_id' => 'price_student']);
+        $plan = Plan::factory()->create(['monthly_price' => 5, 'access_days' => 30]);
 
         $this->post(route('register'), [
             'name' => 'Paid Student',
@@ -93,130 +89,105 @@ class BillingTest extends TestCase
 
         $user = User::query()->where('email', 'paid@example.test')->sole();
         $this->assertAuthenticatedAs($user);
-        $this->assertNull($user->plan_id);
         $this->assertFalse($user->hasHostingAccess());
+        $this->assertDatabaseHas('payments', ['user_id' => $user->id, 'status' => 'pending']);
     }
 
-    public function test_checkout_webhook_activates_a_paid_plan_idempotently(): void
+    public function test_verified_callback_activates_paid_access_idempotently(): void
     {
-        $user = User::factory()->create(['plan_id' => null]);
-        $plan = Plan::factory()->create(['monthly_price' => 5, 'stripe_price_id' => 'price_student']);
-        $this->gateway->subscriptions['sub_student'] = $this->stripeSubscription($user, $plan, 'active');
-        $event = [
-            'id' => 'evt_checkout',
-            'type' => 'checkout.session.completed',
-            'data' => ['object' => [
-                'client_reference_id' => (string) $user->id,
-                'customer' => 'cus_student',
-                'subscription' => 'sub_student',
-            ]],
-        ];
-        $billing = app(BillingManager::class);
+        [$user, $plan, $payment] = $this->pendingPayment();
+        $payload = $this->callbackPayload($payment);
 
-        $billing->handleWebhook($event);
-        $billing->handleWebhook($event);
+        $this->post(route('toyyibpay.callback'), $payload)->assertOk();
+        $this->post(route('toyyibpay.callback'), $payload)->assertOk();
 
+        $payment->refresh();
+        $subscription = Subscription::query()->sole();
+        $this->assertSame(PaymentStatus::Successful, $payment->status);
+        $this->assertSame('TXN-100', $payment->provider_transaction_id);
         $this->assertSame($plan->id, $user->refresh()->plan_id);
-        $this->assertSame('cus_student', $user->stripe_customer_id);
         $this->assertTrue($user->hasHostingAccess());
-        $this->assertDatabaseCount('subscriptions', 1);
-        $this->assertSame(1, BillingWebhookEvent::query()->whereNotNull('processed_at')->count());
+        $this->assertSame('toyyibpay', $subscription->provider);
+        $this->assertTrue($subscription->current_period_end->isBetween(now()->addDays(29), now()->addDays(31)));
     }
 
-    public function test_terminal_subscription_status_revokes_access_and_suspends_websites(): void
+    public function test_invalid_or_unverified_callbacks_never_grant_access(): void
     {
-        Queue::fake();
-        $plan = Plan::factory()->create(['stripe_price_id' => 'price_student']);
-        $user = User::factory()->create(['plan_id' => null, 'stripe_customer_id' => 'cus_student']);
-        Subscription::factory()->for($user)->for($plan)->create([
-            'provider_subscription_id' => 'sub_student',
-            'provider_price_id' => 'price_student',
-        ]);
-        $project = Project::factory()->for($user)->create([
-            'status' => ProjectStatus::Active,
-            'container_name' => 'hosting-project-1',
-            'hostname' => 'site.sites.example.test',
-            'url' => 'https://site.sites.example.test',
-            'deployed_at' => now(),
-        ]);
-        app(BillingManager::class)->handleWebhook([
-            'id' => 'evt_canceled',
-            'type' => 'customer.subscription.deleted',
-            'created' => 200,
-            'data' => ['object' => $this->stripeSubscription($user, $plan, 'canceled')],
-        ]);
+        [$user, , $payment] = $this->pendingPayment();
+        $this->gateway->authentic = false;
 
-        app(BillingManager::class)->handleWebhook([
-            'id' => 'evt_stale_active',
-            'type' => 'customer.subscription.updated',
-            'created' => 100,
-            'data' => ['object' => $this->stripeSubscription($user, $plan, 'active')],
-        ]);
+        $this->post(route('toyyibpay.callback'), $this->callbackPayload($payment))->assertBadRequest();
+        $this->assertFalse($user->refresh()->hasHostingAccess());
 
-        $this->assertNull($user->refresh()->plan_id);
-        $this->assertFalse($user->hasHostingAccess());
-        $this->assertSame(SubscriptionStatus::Canceled, $user->subscriptions()->where('provider', 'stripe')->firstOrFail()->status);
-        $this->assertSame(ProjectStatus::Deploying, $project->refresh()->status);
-        Queue::assertPushed(RunProjectDeployment::class);
+        $this->gateway->authentic = true;
+        $this->gateway->successful = false;
+        $this->post(route('toyyibpay.callback'), $this->callbackPayload($payment))->assertBadRequest();
+        $this->assertFalse($user->refresh()->hasHostingAccess());
     }
 
-    public function test_a_plan_downgrade_suspends_only_projects_over_the_new_limit(): void
+    public function test_another_payment_extends_existing_access(): void
     {
-        Queue::fake();
-        $plan = Plan::factory()->create(['website_limit' => 1, 'stripe_price_id' => 'price_small']);
-        $user = User::factory()->create(['plan_id' => null, 'stripe_customer_id' => 'cus_user']);
-        $first = Project::factory()->for($user)->create(['status' => ProjectStatus::Active, 'container_name' => 'hosting-project-1']);
-        $second = Project::factory()->for($user)->create(['status' => ProjectStatus::Active, 'container_name' => 'hosting-project-2']);
+        [$user, $plan, $first] = $this->pendingPayment();
+        app(BillingManager::class)->handlePaymentCallback($this->callbackPayload($first));
+        $firstEnd = $user->currentSubscription()->current_period_end;
 
-        app(BillingManager::class)->handleWebhook([
-            'id' => 'evt_downgrade',
-            'type' => 'customer.subscription.updated',
-            'data' => ['object' => $this->stripeSubscription($user, $plan, 'active')],
-        ]);
+        app(BillingManager::class)->checkoutUrl($user, $plan);
+        $second = Payment::query()->latest('id')->firstOrFail();
+        app(BillingManager::class)->handlePaymentCallback($this->callbackPayload($second, 'TXN-200'));
 
-        $this->assertSame(ProjectStatus::Active, $first->refresh()->status);
-        $this->assertSame(ProjectStatus::Deploying, $second->refresh()->status);
-        $this->assertTrue($user->canUseProject($first));
-        $this->assertFalse($user->canUseProject($second));
+        $this->assertTrue($user->refresh()->currentSubscription()->current_period_end->equalTo($firstEnd->addDays(30)));
+        $this->assertDatabaseCount('subscriptions', 2);
+        $this->assertSame(1, Subscription::query()->where('status', SubscriptionStatus::Active)->count());
     }
 
-    public function test_invalid_webhook_signatures_are_rejected_without_csrf_errors(): void
+    public function test_expired_prepaid_access_is_revoked(): void
     {
-        $this->gateway->invalidSignature = true;
+        [$user, , $payment] = $this->pendingPayment();
+        app(BillingManager::class)->handlePaymentCallback($this->callbackPayload($payment));
+        $user->currentSubscription()->update(['current_period_end' => now()->subMinute()]);
 
-        $this->postJson(route('stripe.webhook'), [])->assertBadRequest();
+        $this->assertSame(1, app(BillingManager::class)->expireInternalTrials());
+        $this->assertFalse($user->refresh()->hasHostingAccess());
+        $this->assertNull($user->plan_id);
     }
 
-    public function test_an_account_without_entitlement_cannot_mutate_hosting_but_can_delete_it(): void
+    public function test_pending_and_failed_callbacks_do_not_activate_access(): void
+    {
+        [$user, , $payment] = $this->pendingPayment();
+        $payload = $this->callbackPayload($payment);
+        $payload['status'] = '2';
+
+        $this->post(route('toyyibpay.callback'), $payload)->assertOk();
+        $this->assertSame(PaymentStatus::Pending, $payment->refresh()->status);
+        $this->assertFalse($user->refresh()->hasHostingAccess());
+
+        $payload['status'] = '3';
+        $payload['reason'] = 'Declined';
+        $this->post(route('toyyibpay.callback'), $payload)->assertOk();
+        $this->assertSame(PaymentStatus::Failed, $payment->refresh()->status);
+        $this->assertFalse($user->refresh()->hasHostingAccess());
+    }
+
+    /** @return array{User, Plan, Payment} */
+    private function pendingPayment(): array
     {
         $user = User::factory()->create(['plan_id' => null]);
-        $project = Project::factory()->for($user)->create();
+        $plan = Plan::factory()->create(['monthly_price' => 5, 'access_days' => 30]);
+        app(BillingManager::class)->checkoutUrl($user, $plan);
 
-        $this->actingAs($user)->get(route('projects.create'))->assertForbidden();
-        $this->actingAs($user)->put(route('projects.update', $project), [
-            'name' => 'Blocked change',
-            'slug' => $project->slug,
-            'runtime' => $project->runtime->value,
-        ])->assertForbidden();
-        $this->actingAs($user)->delete(route('projects.destroy', $project))->assertRedirect(route('projects.index'));
-
-        $this->assertDatabaseMissing('projects', ['id' => $project->id]);
+        return [$user, $plan, Payment::query()->latest('id')->firstOrFail()];
     }
 
-    /** @return array<string, mixed> */
-    private function stripeSubscription(User $user, Plan $plan, string $status): array
+    /** @return array<string, string> */
+    private function callbackPayload(Payment $payment, string $reference = 'TXN-100'): array
     {
         return [
-            'id' => 'sub_student',
-            'customer' => $user->stripe_customer_id ?: 'cus_student',
-            'status' => $status,
-            'metadata' => ['user_id' => (string) $user->id],
-            'items' => ['data' => [[
-                'price' => ['id' => $plan->stripe_price_id],
-                'current_period_start' => now()->timestamp,
-                'current_period_end' => now()->addMonth()->timestamp,
-            ]]],
-            'cancel_at_period_end' => false,
+            'status' => '1',
+            'order_id' => $payment->external_reference,
+            'billcode' => $payment->provider_bill_code,
+            'refno' => $reference,
+            'amount' => $payment->amount,
+            'hash' => 'fake-valid-hash',
         ];
     }
 }

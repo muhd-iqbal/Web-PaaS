@@ -16,9 +16,9 @@ class SubscriptionFactory extends Factory
         return [
             'user_id' => User::factory()->state(['plan_id' => null]),
             'plan_id' => Plan::factory(),
-            'provider' => 'stripe',
-            'provider_subscription_id' => 'sub_'.fake()->unique()->regexify('[A-Za-z0-9]{20}'),
-            'provider_price_id' => 'price_'.fake()->regexify('[A-Za-z0-9]{20}'),
+            'provider' => 'toyyibpay',
+            'provider_subscription_id' => fake()->unique()->uuid(),
+            'provider_price_id' => null,
             'status' => SubscriptionStatus::Active,
             'current_period_start' => now(),
             'current_period_end' => now()->addMonth(),

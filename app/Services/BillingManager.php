@@ -3,16 +3,17 @@
 namespace App\Services;
 
 use App\Contracts\BillingGateway;
+use App\Enums\PaymentStatus;
 use App\Enums\ProjectStatus;
 use App\Enums\SubscriptionStatus;
 use App\Exceptions\BillingException;
-use App\Models\BillingWebhookEvent;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Throwable;
 
 class BillingManager
@@ -24,27 +25,35 @@ class BillingManager
 
     public function checkoutUrl(User $user, Plan $plan): string
     {
-        if (! $plan->is_active || $plan->isFree() || ! $plan->stripe_price_id) {
+        if (! $plan->is_active || $plan->isFree() || $plan->access_days < 1) {
             throw new BillingException('This paid plan is not configured for checkout.');
         }
 
-        $stripeSubscription = $user->subscriptions()->where('provider', 'stripe')->latest('id')->first();
+        $payment = $user->payments()->create([
+            'plan_id' => $plan->id,
+            'provider' => 'toyyibpay',
+            'external_reference' => (string) Str::uuid(),
+            'amount' => $plan->monthly_price,
+            'currency' => $plan->currency,
+            'status' => PaymentStatus::Pending,
+        ]);
 
-        if ($stripeSubscription?->grantsAccess()) {
-            throw new BillingException('Use the billing portal to change an existing paid subscription.');
+        try {
+            return $this->gateway->checkoutUrl(
+                $user,
+                $plan,
+                $payment,
+                route('billing.return'),
+                route('toyyibpay.callback'),
+            );
+        } catch (Throwable $exception) {
+            $payment->update([
+                'status' => PaymentStatus::Failed,
+                'failure_reason' => Str::limit($exception->getMessage(), 255),
+            ]);
+
+            throw $exception;
         }
-
-        return $this->gateway->checkoutUrl(
-            $user,
-            $plan,
-            route('billing.success').'?session_id={CHECKOUT_SESSION_ID}',
-            route('billing.index'),
-        );
-    }
-
-    public function portalUrl(User $user): string
-    {
-        return $this->gateway->portalUrl($user, route('billing.index'));
     }
 
     public function activateFreePlan(User $user, Plan $plan): Subscription
@@ -71,43 +80,105 @@ class BillingManager
         return $subscription;
     }
 
-    /** @param array<string, mixed> $event */
-    public function handleWebhook(array $event): void
+    /** @param array<string, mixed> $payload */
+    public function handlePaymentCallback(array $payload): Payment
     {
-        $eventId = (string) ($event['id'] ?? '');
-        $type = (string) ($event['type'] ?? '');
-
-        if ($eventId === '' || $type === '') {
-            throw new BillingException('The Stripe webhook payload is incomplete.');
+        foreach (['status', 'order_id', 'billcode', 'refno', 'amount', 'hash'] as $field) {
+            if (! isset($payload[$field]) || ! is_scalar($payload[$field])) {
+                throw new BillingException('The ToyyibPay callback payload is incomplete.');
+            }
         }
 
-        Cache::lock('billing-webhook:'.hash('sha256', $eventId), 60)->block(10, function () use ($event, $eventId, $type): void {
-            $record = BillingWebhookEvent::query()->firstOrCreate(
-                ['provider_event_id' => $eventId],
-                ['type' => $type],
-            );
+        if (! $this->gateway->callbackIsAuthentic($payload)) {
+            throw new BillingException('The ToyyibPay callback signature is invalid.');
+        }
 
-            if ($record->processed_at) {
-                return;
+        $payment = Payment::query()
+            ->where('external_reference', (string) $payload['order_id'])
+            ->first();
+
+        if (! $payment || ! $payment->provider_bill_code
+            || ! hash_equals($payment->provider_bill_code, (string) $payload['billcode'])) {
+            throw new BillingException('The ToyyibPay payment could not be matched to a local bill.');
+        }
+
+        return Cache::lock('toyyibpay-payment:'.$payment->id, 60)->block(10, function () use ($payment, $payload): Payment {
+            $payment->refresh();
+
+            if ($payment->status === PaymentStatus::Successful) {
+                return $payment;
             }
 
-            $object = $event['data']['object'] ?? [];
+            $status = (string) $payload['status'];
 
-            if ($type === 'checkout.session.completed') {
-                $this->handleCheckoutCompleted($object, $event['created'] ?? null);
-            } elseif (in_array($type, ['customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'], true)) {
-                $this->syncStripeSubscription($object, $event['created'] ?? null);
+            if ($status !== '1') {
+                $payment->update([
+                    'status' => $status === '2' ? PaymentStatus::Pending : PaymentStatus::Failed,
+                    'provider_transaction_id' => (string) $payload['refno'],
+                    'failure_reason' => $status === '3' ? Str::limit((string) ($payload['reason'] ?? 'Payment failed.'), 255) : null,
+                ]);
+
+                return $payment->refresh();
             }
 
-            $record->update(['processed_at' => now()]);
+            if (! $this->gateway->paymentIsSuccessful($payment, $payload)) {
+                throw new BillingException('ToyyibPay could not verify the successful payment.');
+            }
+
+            $accessDays = $payment->plan?->access_days;
+
+            if (! $accessDays || $accessDays < 1) {
+                throw new BillingException('The plan for this payment is no longer available.');
+            }
+
+            $user = $payment->user;
+
+            DB::transaction(function () use ($accessDays, $payment, $payload, $user): void {
+                $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
+
+                if ($lockedPayment->status === PaymentStatus::Successful) {
+                    return;
+                }
+
+                $current = $user->currentSubscription();
+                $periodStart = now();
+                $extensionBase = $current?->current_period_end?->isFuture()
+                    ? $current->current_period_end->copy()
+                    : $periodStart->copy();
+
+                $subscription = $user->subscriptions()->create([
+                    'plan_id' => $lockedPayment->plan_id,
+                    'provider' => 'toyyibpay',
+                    'provider_subscription_id' => $lockedPayment->external_reference,
+                    'status' => SubscriptionStatus::Active,
+                    'current_period_start' => $periodStart,
+                    'current_period_end' => $extensionBase->addDays($accessDays),
+                ]);
+
+                $user->subscriptions()
+                    ->whereKeyNot($subscription->id)
+                    ->whereIn('status', [SubscriptionStatus::Active->value, SubscriptionStatus::Trialing->value, SubscriptionStatus::PastDue->value])
+                    ->update(['status' => SubscriptionStatus::Canceled->value, 'ended_at' => now()]);
+
+                $lockedPayment->update([
+                    'status' => PaymentStatus::Successful,
+                    'provider_transaction_id' => (string) $payload['refno'],
+                    'paid_at' => now(),
+                    'failure_reason' => null,
+                ]);
+            });
+
+            $this->syncEntitlement($user->refresh());
+
+            return $payment->refresh();
         });
     }
 
     public function expireInternalTrials(): int
     {
         $expired = Subscription::query()
-            ->where('provider', 'internal')
-            ->where('status', SubscriptionStatus::Trialing)
+            ->whereIn('provider', ['internal', 'toyyibpay'])
+            ->whereIn('status', [SubscriptionStatus::Trialing, SubscriptionStatus::Active])
             ->whereNotNull('current_period_end')
             ->where('current_period_end', '<=', now())
             ->get();
@@ -133,85 +204,6 @@ class BillingManager
         return $count;
     }
 
-    /** @param array<string, mixed> $session */
-    private function handleCheckoutCompleted(array $session, mixed $eventCreated): void
-    {
-        $userId = $session['client_reference_id'] ?? $session['metadata']['user_id'] ?? null;
-        $customerId = $this->stripeId($session['customer'] ?? null);
-        $subscriptionId = $this->stripeId($session['subscription'] ?? null);
-        $user = User::query()->find($userId);
-
-        if (! $user || ! $customerId || ! $subscriptionId) {
-            throw new BillingException('The completed checkout could not be matched to an account.');
-        }
-
-        $user->update(['stripe_customer_id' => $customerId]);
-        $this->syncStripeSubscription($this->gateway->retrieveSubscription($subscriptionId), $eventCreated);
-    }
-
-    /** @param array<string, mixed> $data */
-    private function syncStripeSubscription(array $data, mixed $eventCreated): void
-    {
-        $subscriptionId = (string) ($data['id'] ?? '');
-        $customerId = $this->stripeId($data['customer'] ?? null);
-        $priceId = $this->stripeId($data['items']['data'][0]['price']['id'] ?? null);
-        $userId = $data['metadata']['user_id'] ?? null;
-        $existing = Subscription::query()->where('provider_subscription_id', $subscriptionId)->with(['user', 'plan'])->first();
-        $user = User::query()->where('stripe_customer_id', $customerId)->first() ?: User::query()->find($userId) ?: $existing?->user;
-        $plan = Plan::query()->where('stripe_price_id', $priceId)->first();
-
-        if (! $plan && $existing?->provider_price_id === $priceId) {
-            $plan = $existing->plan;
-        }
-
-        $status = SubscriptionStatus::tryFrom((string) ($data['status'] ?? ''));
-        $eventCreatedAt = $this->timestamp($eventCreated);
-        $planId = $plan?->id ?? $existing?->plan_id;
-
-        if (! $user || ! $status || $subscriptionId === '' || ! $customerId || (! $planId && $status->grantsAccess())) {
-            throw new BillingException('The Stripe subscription could not be matched to an account and plan.');
-        }
-
-        DB::transaction(function () use ($data, $subscriptionId, $customerId, $priceId, $user, $planId, $status, $eventCreatedAt): void {
-            $user->update(['stripe_customer_id' => $customerId]);
-            $subscription = Subscription::query()->where('provider_subscription_id', $subscriptionId)->lockForUpdate()->first();
-
-            if ($subscription?->provider_event_created_at && (! $eventCreatedAt || $subscription->provider_event_created_at->isAfter($eventCreatedAt))) {
-                return;
-            }
-
-            if ($subscription?->provider_event_created_at?->equalTo($eventCreatedAt)
-                && ! $subscription->status->grantsAccess()
-                && $status->grantsAccess()) {
-                return;
-            }
-
-            $subscription ??= new Subscription(['provider_subscription_id' => $subscriptionId]);
-            $subscription->fill([
-                'user_id' => $user->id,
-                'plan_id' => $planId,
-                'provider' => 'stripe',
-                'provider_price_id' => $priceId,
-                'status' => $status,
-                'provider_event_created_at' => $eventCreatedAt,
-                'current_period_start' => $this->timestamp($data['current_period_start'] ?? $data['items']['data'][0]['current_period_start'] ?? null),
-                'current_period_end' => $this->timestamp($data['current_period_end'] ?? $data['items']['data'][0]['current_period_end'] ?? null),
-                'cancel_at_period_end' => (bool) ($data['cancel_at_period_end'] ?? false),
-                'ended_at' => $this->timestamp($data['ended_at'] ?? null),
-            ])->save();
-
-            if ($subscription->grantsAccess()) {
-                $user->subscriptions()
-                    ->whereKeyNot($subscription->id)
-                    ->whereIn('provider', ['internal', 'legacy'])
-                    ->whereIn('status', [SubscriptionStatus::Active->value, SubscriptionStatus::Trialing->value, SubscriptionStatus::PastDue->value])
-                    ->update(['status' => SubscriptionStatus::Canceled->value, 'ended_at' => now()]);
-            }
-        });
-
-        $this->syncEntitlement($user->refresh());
-    }
-
     private function syncEntitlement(User $user): void
     {
         $subscription = $user->currentSubscription();
@@ -230,19 +222,5 @@ class BillingManager
                 report($exception);
             }
         }
-    }
-
-    private function stripeId(mixed $value): ?string
-    {
-        if (is_string($value)) {
-            return $value;
-        }
-
-        return is_array($value) && isset($value['id']) ? (string) $value['id'] : null;
-    }
-
-    private function timestamp(mixed $value): ?CarbonImmutable
-    {
-        return is_numeric($value) ? CarbonImmutable::createFromTimestampUTC((int) $value) : null;
     }
 }

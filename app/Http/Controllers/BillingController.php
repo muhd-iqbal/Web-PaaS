@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\BillingException;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Services\BillingManager;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,7 @@ class BillingController extends Controller
             'plans' => Plan::query()->where('is_active', true)->orderBy('sort_order')->get(),
             'subscriptions' => $request->user()->subscriptions()->with('plan')->latest()->get(),
             'currentSubscription' => $request->user()->currentSubscription(),
+            'payments' => $request->user()->payments()->with('plan')->latest()->limit(20)->get(),
         ]);
     }
 
@@ -40,17 +42,22 @@ class BillingController extends Controller
         }
     }
 
-    public function portal(Request $request, BillingManager $billing): RedirectResponse
+    public function return(Request $request): RedirectResponse
     {
-        try {
-            return redirect()->away($billing->portalUrl($request->user()));
-        } catch (BillingException $exception) {
-            throw ValidationException::withMessages(['billing' => $exception->getMessage()]);
-        }
-    }
+        $payment = Payment::query()
+            ->whereBelongsTo($request->user())
+            ->where('external_reference', (string) $request->query('order_id'))
+            ->first();
 
-    public function success(): RedirectResponse
-    {
-        return to_route('billing.index')->with('status', 'Checkout completed. Your plan will activate as soon as Stripe confirms the subscription.');
+        if (! $payment) {
+            return to_route('billing.index')->withErrors(['billing' => 'The returned payment could not be found.']);
+        }
+
+        return to_route('billing.index')->with(
+            'status',
+            $payment->status->value === 'successful'
+                ? 'Payment confirmed. Your hosting access is active.'
+                : 'Payment received. ToyyibPay is still confirming it; this page will update after the callback arrives.',
+        );
     }
 }

@@ -24,20 +24,23 @@ class PlanForm
                 Textarea::make('description')
                     ->columnSpanFull(),
                 TextInput::make('monthly_price')
+                    ->label('One-off price')
                     ->required()
                     ->numeric()
                     ->minValue(0)
                     ->default(0)
                     ->prefix('RM'),
-                TextInput::make('stripe_price_id')
-                    ->label('Stripe recurring price ID')
-                    ->unique(ignoreRecord: true)
-                    ->maxLength(255)
-                    ->helperText('Required for paid plans.'),
                 TextInput::make('currency')
                     ->required()
                     ->length(3)
                     ->default('myr'),
+                TextInput::make('access_days')
+                    ->label('Paid access days')
+                    ->helperText('Each successful payment grants this many days. Renewals extend the current end date.')
+                    ->required()
+                    ->numeric()
+                    ->minValue(1)
+                    ->default(30),
                 TextInput::make('trial_days')
                     ->label('Free trial days')
                     ->required()

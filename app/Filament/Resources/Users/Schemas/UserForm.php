@@ -34,7 +34,7 @@ class UserForm
                     ->preload()
                     ->disabled()
                     ->dehydrated(false)
-                    ->helperText('Plan access is synchronized from subscriptions.'),
+                    ->helperText('Plan access is synchronized from verified payments and free trials.'),
                 Toggle::make('is_admin')
                     ->default(false)
                     ->required(),

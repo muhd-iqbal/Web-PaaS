@@ -17,9 +17,9 @@ class Plan extends Model
         'slug',
         'description',
         'monthly_price',
-        'stripe_price_id',
         'currency',
         'trial_days',
+        'access_days',
         'website_limit',
         'storage_mb',
         'bandwidth_mb',
@@ -49,12 +49,17 @@ class Plan extends Model
         return $this->hasMany(Subscription::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
     public function isFree(): bool
     {
         return (float) $this->monthly_price <= 0;
     }
 
-    public function formattedMonthlyPrice(): string
+    public function formattedPrice(): string
     {
         $amount = number_format((float) $this->monthly_price, 2);
 

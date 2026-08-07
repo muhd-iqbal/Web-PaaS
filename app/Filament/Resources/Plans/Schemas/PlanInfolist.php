@@ -19,9 +19,7 @@ class PlanInfolist
                     ->columnSpanFull(),
                 TextEntry::make('monthly_price')
                     ->money('MYR'),
-                TextEntry::make('stripe_price_id')
-                    ->label('Stripe price ID')
-                    ->placeholder('-'),
+                TextEntry::make('access_days')->label('Paid access days'),
                 TextEntry::make('currency'),
                 TextEntry::make('trial_days')->numeric(),
                 TextEntry::make('website_limit')

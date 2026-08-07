@@ -26,7 +26,6 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'plan_id',
-        'stripe_customer_id',
         'email_verified_at',
         'is_admin',
     ];
@@ -68,6 +67,11 @@ class User extends Authenticatable implements FilamentUser
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
     }
 
     public function adminAlerts(): HasMany

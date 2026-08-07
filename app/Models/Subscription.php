@@ -44,6 +44,6 @@ class Subscription extends Model
     public function grantsAccess(): bool
     {
         return $this->status->grantsAccess()
-            && ($this->status !== SubscriptionStatus::Trialing || $this->current_period_end === null || $this->current_period_end->isFuture());
+            && ($this->current_period_end === null || $this->current_period_end->isFuture());
     }
 }

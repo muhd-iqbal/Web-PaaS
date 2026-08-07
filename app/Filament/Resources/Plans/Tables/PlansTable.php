@@ -23,10 +23,9 @@ class PlansTable
                 TextColumn::make('monthly_price')
                     ->money('MYR')
                     ->sortable(),
-                TextColumn::make('stripe_price_id')
-                    ->label('Stripe price')
-                    ->placeholder('-')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('access_days')
+                    ->label('Access days')
+                    ->numeric(),
                 TextColumn::make('website_limit')
                     ->numeric()
                     ->sortable(),

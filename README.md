@@ -1,6 +1,6 @@
 # Student Web Hosting Platform
 
-Phases 1–5 provide a Laravel 12 control panel with account registration, subscription billing, project and file management, queued Docker deployment, and managed MariaDB databases for PHP projects.
+The platform provides a Laravel 12 control panel with account registration, prepaid billing, project and file management, queued Docker deployment, managed MariaDB databases, and usage monitoring.
 
 ## Local application setup
 
@@ -88,26 +88,23 @@ php artisan schedule:work
 
 Production may use the normal once-per-minute cron entry instead. Accounts exceeding their shared database allowance are switched to read-only SQL privileges until an administrator increases the allowance or reduces/restores usage. Credentials are encrypted with Laravel's application key and injected into PHP containers on redeployment.
 
-## Stripe subscription billing
+## ToyyibPay prepaid billing
 
-Paid plans use Stripe Checkout and Stripe's hosted customer portal. Install dependencies with `composer install`, then configure:
+Paid plans use one-off ToyyibPay bills. There is no automatic subscription or renewal: each verified payment grants the plan's configured number of access days, and another payment extends the current end date.
 
-```dotenv
-STRIPE_KEY=pk_live_or_test_value
-STRIPE_SECRET=sk_live_or_test_value
-STRIPE_WEBHOOK_SECRET=whsec_value
-```
+After migrating, sign in to Filament and open **Payment settings**. Create the single ToyyibPay configuration, enter the User Secret Key and Category Code from ToyyibPay, choose sandbox or production, choose FPX/card channels, then enable checkout. The secret key is encrypted in the database using `APP_KEY`.
 
-Create a recurring monthly Stripe Price for each paid plan and enter its `price_...` identifier in the Filament plan editor. Configure the Stripe customer portal to allow payment-method changes, cancellations, and plan switching between the same configured prices.
-
-Register this HTTPS webhook endpoint in Stripe:
+In **Plans**, configure the one-off price and the number of paid access days. The application sends these callback and return URLs to ToyyibPay when it creates each bill:
 
 ```text
-https://your-control-panel.example.com/stripe/webhook
+https://your-control-panel.example.com/billing/toyyibpay/callback
+https://your-control-panel.example.com/billing/toyyibpay/return
 ```
 
-Subscribe it to `checkout.session.completed`, `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`. Webhook signatures are verified and event IDs are processed idempotently. Paid limits are granted only after Stripe reports `active`, `trialing`, or `past_due`; terminal unpaid/canceled states revoke mutations and queue website suspension.
+Set `APP_URL` to the public HTTPS control-panel URL before caching configuration. The callback must be publicly reachable; localhost cannot receive ToyyibPay callbacks.
 
-The existing scheduler also expires internal free trials, so keep `php artisan schedule:work` or the production cron entry running. Billing setup can be tested with Stripe test-mode keys and the Stripe CLI before enabling live mode.
+The callback signature, local order reference, bill code, amount, and ToyyibPay transaction status are verified server-side. Browser return parameters never grant access. Callback processing is idempotent.
 
-General-purpose resource monitoring and alerting remain intentionally out of scope until Phase 6.
+Keep `php artisan schedule:work` or the production cron entry running so prepaid access and free trials expire on time. Complete an end-to-end sandbox payment before switching the admin setting to production.
+
+General-purpose resource monitoring and alerting are configured independently of billing.

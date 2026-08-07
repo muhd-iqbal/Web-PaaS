@@ -15,7 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // proxy so Laravel honors its forwarded host, port, and HTTPS scheme.
         $middleware->trustProxies(at: '*');
 
-        $middleware->validateCsrfTokens(except: ['stripe/webhook']);
+        $middleware->validateCsrfTokens(except: ['billing/toyyibpay/callback']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

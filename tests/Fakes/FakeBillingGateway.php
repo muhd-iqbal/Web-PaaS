@@ -3,50 +3,40 @@
 namespace Tests\Fakes;
 
 use App\Contracts\BillingGateway;
-use App\Exceptions\BillingException;
+use App\Models\Payment;
 use App\Models\Plan;
 use App\Models\User;
 
 class FakeBillingGateway implements BillingGateway
 {
-    public string $checkout = 'https://checkout.stripe.test/session';
+    public string $checkout = 'https://dev.toyyibpay.test/bill-code';
 
-    public string $portal = 'https://billing.stripe.test/portal';
+    public bool $authentic = true;
 
-    /** @var array<string, mixed> */
-    public array $webhook = [];
+    public bool $successful = true;
 
-    /** @var array<string, array<string, mixed>> */
-    public array $subscriptions = [];
-
-    public bool $invalidSignature = false;
-
-    /** @var list<array{user_id: int, plan_id: int}> */
+    /** @var list<array{user_id: int, plan_id: int, payment_id: int}> */
     public array $checkouts = [];
 
-    public function checkoutUrl(User $user, Plan $plan, string $successUrl, string $cancelUrl): string
+    public function checkoutUrl(User $user, Plan $plan, Payment $payment, string $returnUrl, string $callbackUrl): string
     {
-        $this->checkouts[] = ['user_id' => $user->id, 'plan_id' => $plan->id];
+        $payment->update(['provider_bill_code' => 'bill_'.$payment->id]);
+        $this->checkouts[] = [
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'payment_id' => $payment->id,
+        ];
 
         return $this->checkout;
     }
 
-    public function portalUrl(User $user, string $returnUrl): string
+    public function callbackIsAuthentic(array $payload): bool
     {
-        return $this->portal;
+        return $this->authentic;
     }
 
-    public function parseWebhook(string $payload, string $signature): array
+    public function paymentIsSuccessful(Payment $payment, array $payload): bool
     {
-        if ($this->invalidSignature) {
-            throw new BillingException('Invalid signature');
-        }
-
-        return $this->webhook;
-    }
-
-    public function retrieveSubscription(string $subscriptionId): array
-    {
-        return $this->subscriptions[$subscriptionId] ?? throw new BillingException('Unknown subscription');
+        return $this->successful;
     }
 }
