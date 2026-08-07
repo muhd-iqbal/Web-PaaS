@@ -45,7 +45,7 @@ class ToyyibPayGatewayTest extends TestCase
                 && $request['billAmount'] === 500
                 && $request['billPayorInfo'] === 0
                 && $request['billPaymentChannel'] === 2
-                && $request['billChargeToCustomer'] === 2;
+                && $request['billChargeToCustomer'] === '';
         });
     }
 
@@ -66,12 +66,13 @@ class ToyyibPayGatewayTest extends TestCase
                 'billpaymentStatus' => '1',
                 'billpaymentInvoiceNo' => 'TP123',
                 'billpaymentAmount' => '5.00',
+                'billExternalReferenceNo' => $payment->external_reference,
             ]]),
         ]);
         $gateway = app(ToyyibPayBillingGateway::class);
 
         $this->assertTrue($gateway->callbackIsAuthentic($payload));
-        $this->assertTrue($gateway->paymentIsSuccessful($payment, $payload));
+        $this->assertSame('TP123', $gateway->successfulTransaction($payment, 'TP123'));
 
         $payload['hash'] = 'tampered';
         $this->assertFalse($gateway->callbackIsAuthentic($payload));

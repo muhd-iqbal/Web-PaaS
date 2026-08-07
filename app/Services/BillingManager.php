@@ -102,16 +102,16 @@ class BillingManager
             throw new BillingException('The ToyyibPay payment could not be matched to a local bill.');
         }
 
-        return Cache::lock('toyyibpay-payment:'.$payment->id, 60)->block(10, function () use ($payment, $payload): Payment {
-            $payment->refresh();
+        $status = (string) $payload['status'];
 
-            if ($payment->status === PaymentStatus::Successful) {
-                return $payment;
-            }
+        if ($status !== '1') {
+            return Cache::lock('toyyibpay-payment:'.$payment->id, 60)->block(10, function () use ($payment, $payload, $status): Payment {
+                $payment->refresh();
 
-            $status = (string) $payload['status'];
+                if ($payment->status === PaymentStatus::Successful) {
+                    return $payment;
+                }
 
-            if ($status !== '1') {
                 $payment->update([
                     'status' => $status === '2' ? PaymentStatus::Pending : PaymentStatus::Failed,
                     'provider_transaction_id' => (string) $payload['refno'],
@@ -119,10 +119,73 @@ class BillingManager
                 ]);
 
                 return $payment->refresh();
-            }
+            });
+        }
 
-            if (! $this->gateway->paymentIsSuccessful($payment, $payload)) {
-                throw new BillingException('ToyyibPay could not verify the successful payment.');
+        if (! is_numeric($payload['amount'])
+            || abs((float) $payment->amount - (float) $payload['amount']) >= 0.005) {
+            throw new BillingException('The ToyyibPay callback amount does not match the bill.');
+        }
+
+        $transactionReference = $this->gateway->successfulTransaction($payment, (string) $payload['refno']);
+
+        if (! $transactionReference) {
+            throw new BillingException('ToyyibPay could not verify the successful payment.');
+        }
+
+        return $this->confirmPayment($payment, $transactionReference);
+    }
+
+    public function reconcilePayment(Payment $payment): bool
+    {
+        if ($payment->status === PaymentStatus::Successful) {
+            return true;
+        }
+
+        if (! $payment->provider_bill_code) {
+            return false;
+        }
+
+        $transactionReference = $this->gateway->successfulTransaction($payment);
+
+        if (! $transactionReference) {
+            return false;
+        }
+
+        $this->confirmPayment($payment, $transactionReference);
+
+        return true;
+    }
+
+    public function reconcilePendingPayments(): int
+    {
+        $confirmed = 0;
+
+        Payment::query()
+            ->where('provider', 'toyyibpay')
+            ->where('status', PaymentStatus::Pending)
+            ->whereNotNull('provider_bill_code')
+            ->where('created_at', '>=', now()->subDays(7))
+            ->eachById(function (Payment $payment) use (&$confirmed): void {
+                try {
+                    if ($this->reconcilePayment($payment)) {
+                        $confirmed++;
+                    }
+                } catch (Throwable $exception) {
+                    report($exception);
+                }
+            });
+
+        return $confirmed;
+    }
+
+    private function confirmPayment(Payment $payment, string $transactionReference): Payment
+    {
+        return Cache::lock('toyyibpay-payment:'.$payment->id, 60)->block(10, function () use ($payment, $transactionReference): Payment {
+            $payment->refresh();
+
+            if ($payment->status === PaymentStatus::Successful) {
+                return $payment;
             }
 
             $accessDays = $payment->plan?->access_days;
@@ -133,7 +196,7 @@ class BillingManager
 
             $user = $payment->user;
 
-            DB::transaction(function () use ($accessDays, $payment, $payload, $user): void {
+            DB::transaction(function () use ($accessDays, $payment, $transactionReference, $user): void {
                 $lockedPayment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
 
                 if ($lockedPayment->status === PaymentStatus::Successful) {
@@ -162,7 +225,7 @@ class BillingManager
 
                 $lockedPayment->update([
                     'status' => PaymentStatus::Successful,
-                    'provider_transaction_id' => (string) $payload['refno'],
+                    'provider_transaction_id' => $transactionReference,
                     'paid_at' => now(),
                     'failure_reason' => null,
                 ]);

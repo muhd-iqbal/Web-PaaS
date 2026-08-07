@@ -13,6 +13,5 @@ interface BillingGateway
     /** @param array<string, mixed> $payload */
     public function callbackIsAuthentic(array $payload): bool;
 
-    /** @param array<string, mixed> $payload */
-    public function paymentIsSuccessful(Payment $payment, array $payload): bool;
+    public function successfulTransaction(Payment $payment, ?string $expectedReference = null): ?string;
 }

@@ -140,6 +140,40 @@ class BillingTest extends TestCase
         $this->assertSame(1, Subscription::query()->where('status', SubscriptionStatus::Active)->count());
     }
 
+    public function test_successful_browser_return_reconciles_with_toyyibpay_without_trusting_the_query_string(): void
+    {
+        [$user, $plan, $payment] = $this->pendingPayment();
+
+        $this->actingAs($user)->get(route('billing.return', [
+            'status_id' => 1,
+            'billcode' => $payment->provider_bill_code,
+            'order_id' => $payment->external_reference,
+        ]))->assertRedirect(route('billing.index'));
+
+        $this->assertSame(PaymentStatus::Successful, $payment->refresh()->status);
+        $this->assertSame('TXN-RECONCILED', $payment->provider_transaction_id);
+        $this->assertSame($plan->id, $user->refresh()->plan_id);
+
+        [$otherUser, , $otherPayment] = $this->pendingPayment();
+        $this->gateway->successful = false;
+        $this->actingAs($otherUser)->get(route('billing.return', [
+            'status_id' => 1,
+            'order_id' => $otherPayment->external_reference,
+        ]))->assertRedirect(route('billing.index'));
+        $this->assertSame(PaymentStatus::Pending, $otherPayment->refresh()->status);
+        $this->assertFalse($otherUser->refresh()->hasHostingAccess());
+    }
+
+    public function test_scheduler_reconciles_a_missed_callback(): void
+    {
+        [$user, , $payment] = $this->pendingPayment();
+
+        $this->artisan('billing:reconcile-toyyibpay')->assertSuccessful();
+
+        $this->assertSame(PaymentStatus::Successful, $payment->refresh()->status);
+        $this->assertTrue($user->refresh()->hasHostingAccess());
+    }
+
     public function test_expired_prepaid_access_is_revoked(): void
     {
         [$user, , $payment] = $this->pendingPayment();

@@ -35,8 +35,8 @@ class FakeBillingGateway implements BillingGateway
         return $this->authentic;
     }
 
-    public function paymentIsSuccessful(Payment $payment, array $payload): bool
+    public function successfulTransaction(Payment $payment, ?string $expectedReference = null): ?string
     {
-        return $this->successful;
+        return $this->successful ? ($expectedReference ?? 'TXN-RECONCILED') : null;
     }
 }

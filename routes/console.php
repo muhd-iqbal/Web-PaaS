@@ -10,6 +10,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('databases:refresh-usage')->everyFifteenMinutes()->withoutOverlapping();
 Schedule::command('subscriptions:expire-trials')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('billing:reconcile-toyyibpay')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('usage:import-traefik')->everyMinute()->withoutOverlapping();
 Schedule::command('monitoring:collect')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('monitoring:prune')->dailyAt('02:30')->withoutOverlapping();

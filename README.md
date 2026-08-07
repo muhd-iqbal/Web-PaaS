@@ -103,7 +103,7 @@ https://your-control-panel.example.com/billing/toyyibpay/return
 
 Set `APP_URL` to the public HTTPS control-panel URL before caching configuration. The callback must be publicly reachable; localhost cannot receive ToyyibPay callbacks.
 
-The callback signature, local order reference, bill code, amount, and ToyyibPay transaction status are verified server-side. Browser return parameters never grant access. Callback processing is idempotent.
+The callback signature, local order reference, bill code, amount, and ToyyibPay transaction status are verified server-side. Browser return parameters never grant access. Callback processing is idempotent. A successful browser return also triggers a server-to-server status check, and the scheduler reconciles missed callbacks every five minutes. To reconcile immediately, run `php artisan billing:reconcile-toyyibpay`.
 
 Keep `php artisan schedule:work` or the production cron entry running so prepaid access and free trials expire on time. Complete an end-to-end sandbox payment before switching the admin setting to production.
 

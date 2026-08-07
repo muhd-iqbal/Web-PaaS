@@ -10,6 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Throwable;
 
 class BillingController extends Controller
 {
@@ -42,7 +43,7 @@ class BillingController extends Controller
         }
     }
 
-    public function return(Request $request): RedirectResponse
+    public function return(Request $request, BillingManager $billing): RedirectResponse
     {
         $payment = Payment::query()
             ->whereBelongsTo($request->user())
@@ -51,6 +52,15 @@ class BillingController extends Controller
 
         if (! $payment) {
             return to_route('billing.index')->withErrors(['billing' => 'The returned payment could not be found.']);
+        }
+
+        if ((string) $request->query('status_id') === '1' && $payment->status->value !== 'successful') {
+            try {
+                $billing->reconcilePayment($payment);
+                $payment->refresh();
+            } catch (Throwable $exception) {
+                report($exception);
+            }
         }
 
         return to_route('billing.index')->with(

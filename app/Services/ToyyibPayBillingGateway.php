@@ -39,7 +39,7 @@ class ToyyibPayBillingGateway implements BillingGateway
                     'billEmail' => $user->email,
                     'billPhone' => '',
                     'billPaymentChannel' => $settings->payment_channel,
-                    'billChargeToCustomer' => $settings->charge_to_customer ? 1 : 2,
+                    'billChargeToCustomer' => $settings->charge_to_customer ? 0 : '',
                     'billExpiryDays' => 1,
                     'billExpiryDate' => now()->addDay()->format('d-m-Y'),
                 ])->throw();
@@ -73,13 +73,8 @@ class ToyyibPayBillingGateway implements BillingGateway
         return $provided !== '' && hash_equals($expected, $provided);
     }
 
-    public function paymentIsSuccessful(Payment $payment, array $payload): bool
+    public function successfulTransaction(Payment $payment, ?string $expectedReference = null): ?string
     {
-        if ((string) ($payload['status'] ?? '') !== '1'
-            || ! $this->amountMatches($payment, $payload['amount'] ?? null)) {
-            return false;
-        }
-
         $settings = $this->settings();
 
         try {
@@ -98,7 +93,7 @@ class ToyyibPayBillingGateway implements BillingGateway
         $transactions = $response->json();
 
         if (! is_array($transactions)) {
-            return false;
+            return null;
         }
 
         foreach ($transactions as $transaction) {
@@ -107,9 +102,15 @@ class ToyyibPayBillingGateway implements BillingGateway
             }
 
             $transactionReference = (string) ($transaction['billpaymentInvoiceNo'] ?? '');
-            $callbackReference = (string) ($payload['refno'] ?? '');
 
-            if ($transactionReference !== '' && $callbackReference !== '' && ! hash_equals($transactionReference, $callbackReference)) {
+            if ($transactionReference === ''
+                || ($expectedReference !== null && ! hash_equals($transactionReference, $expectedReference))) {
+                continue;
+            }
+
+            $externalReference = (string) ($transaction['billExternalReferenceNo'] ?? '');
+
+            if ($externalReference !== '' && ! hash_equals($payment->external_reference, $externalReference)) {
                 continue;
             }
 
@@ -118,10 +119,10 @@ class ToyyibPayBillingGateway implements BillingGateway
                 continue;
             }
 
-            return true;
+            return $transactionReference;
         }
 
-        return false;
+        return null;
     }
 
     private function settings(): BillingSetting
