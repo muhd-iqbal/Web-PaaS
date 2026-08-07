@@ -111,6 +111,18 @@ class BillingTest extends TestCase
         $this->assertTrue($subscription->current_period_end->isBetween(now()->addDays(29), now()->addDays(31)));
     }
 
+    public function test_verified_callback_accepts_a_total_that_includes_customer_payment_fees(): void
+    {
+        [$user, , $payment] = $this->pendingPayment();
+        $payload = $this->callbackPayload($payment);
+        $payload['amount'] = '6.00';
+
+        $this->post(route('toyyibpay.callback'), $payload)->assertOk();
+
+        $this->assertSame(PaymentStatus::Successful, $payment->refresh()->status);
+        $this->assertTrue($user->refresh()->hasHostingAccess());
+    }
+
     public function test_invalid_or_unverified_callbacks_never_grant_access(): void
     {
         [$user, , $payment] = $this->pendingPayment();

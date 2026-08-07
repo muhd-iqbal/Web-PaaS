@@ -123,8 +123,8 @@ class BillingManager
         }
 
         if (! is_numeric($payload['amount'])
-            || abs((float) $payment->amount - (float) $payload['amount']) >= 0.005) {
-            throw new BillingException('The ToyyibPay callback amount does not match the bill.');
+            || (float) $payload['amount'] + 0.005 < (float) $payment->amount) {
+            throw new BillingException('The ToyyibPay callback amount is less than the bill amount.');
         }
 
         $transactionReference = $this->gateway->successfulTransaction($payment, (string) $payload['refno']);

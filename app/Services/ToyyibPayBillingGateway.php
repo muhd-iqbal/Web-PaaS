@@ -115,7 +115,7 @@ class ToyyibPayBillingGateway implements BillingGateway
             }
 
             if (isset($transaction['billpaymentAmount'])
-                && ! $this->amountMatches($payment, $transaction['billpaymentAmount'])) {
+                && ! $this->amountCoversBill($payment, $transaction['billpaymentAmount'])) {
                 continue;
             }
 
@@ -143,9 +143,9 @@ class ToyyibPayBillingGateway implements BillingGateway
         return Str::limit(preg_replace('/\s+/', ' ', trim($value)) ?: 'Hosting', $limit, '');
     }
 
-    private function amountMatches(Payment $payment, mixed $amount): bool
+    private function amountCoversBill(Payment $payment, mixed $amount): bool
     {
         return is_numeric($amount)
-            && abs((float) $payment->amount - (float) $amount) < 0.005;
+            && (float) $amount + 0.005 >= (float) $payment->amount;
     }
 }

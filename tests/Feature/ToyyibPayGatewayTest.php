@@ -65,7 +65,7 @@ class ToyyibPayGatewayTest extends TestCase
             'https://dev.toyyibpay.com/index.php/api/getBillTransactions' => Http::response([[
                 'billpaymentStatus' => '1',
                 'billpaymentInvoiceNo' => 'TP123',
-                'billpaymentAmount' => '5.00',
+                'billpaymentAmount' => '6.00',
                 'billExternalReferenceNo' => $payment->external_reference,
             ]]),
         ]);
