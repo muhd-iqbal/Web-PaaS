@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ProjectDatabaseController;
 use App\Http\Controllers\ProjectDeploymentController;
@@ -19,6 +20,8 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+Route::view('/faq', 'faq')->name('faq');
+
 Route::post('/billing/toyyibpay/callback', ToyyibPayCallbackController::class)->name('toyyibpay.callback');
 
 Route::middleware('guest')->group(function (): void {
@@ -31,6 +34,8 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware('auth')->group(function (): void {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/billing', [BillingController::class, 'index'])->name('billing.index');
+    Route::get('/feedback', [FeedbackController::class, 'index'])->name('feedback.index');
+    Route::post('/feedback', [FeedbackController::class, 'store'])->middleware('throttle:3,1')->name('feedback.store');
     Route::post('/billing/subscribe/{plan}', [BillingController::class, 'subscribe'])->middleware('throttle:6,1')->name('billing.subscribe');
     Route::get('/billing/toyyibpay/return', [BillingController::class, 'return'])->name('billing.return');
     Route::resource('projects', ProjectController::class);

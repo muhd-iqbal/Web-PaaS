@@ -8,6 +8,7 @@
         <div class="field"><label for="plan_id">Hosting plan</label><select id="plan_id" name="plan_id" required><option value="">Choose a plan</option>@foreach($plans as $plan)<option value="{{ $plan->id }}" @selected(old('plan_id') == $plan->id)>{{ $plan->name }} — {{ $plan->formattedPrice() }} / {{ $plan->isFree() ? $plan->trial_days : $plan->access_days }} days</option>@endforeach</select>@error('plan_id')<div class="error">{{ $message }}</div>@enderror</div>
         <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" required autocomplete="new-password">@error('password')<div class="error">{{ $message }}</div>@enderror</div>
         <div class="field"><label for="password_confirmation">Confirm password</label><input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password"></div>
+        <div class="notice small">This service is intended for tests and temporary websites. There are no backups or recovery guarantees. Read the <a href="{{ route('faq') }}">FAQ and service policies</a> before continuing.</div>
         <button class="button" type="submit">Create account</button>
     </form>
     <p class="muted small">Already registered? <a href="{{ route('login') }}">Log in</a>.</p>

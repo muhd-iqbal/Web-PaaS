@@ -26,9 +26,10 @@
         .page-head { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:28px; } .page-head h1 { font-size:2.15rem; }
         table { width:100%; border-collapse:collapse; } th,td { padding:14px 12px; text-align:left; border-bottom:1px solid var(--line); } th { font-size:.78rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
         .badge { display:inline-flex; padding:3px 9px; border-radius:99px; background:#e0e7ff; color:#3730a3; font-size:.78rem; font-weight:700; }
-        label { display:block; font-weight:700; margin-bottom:6px; } input,select { width:100%; min-height:44px; padding:9px 11px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:var(--ink); font:inherit; }
+        label { display:block; font-weight:700; margin-bottom:6px; } input,select,textarea { width:100%; min-height:44px; padding:9px 11px; border:1px solid #cbd5e1; border-radius:8px; background:#fff; color:var(--ink); font:inherit; } textarea { min-height:160px; resize:vertical; }
         .field { margin-bottom:18px; } .form-card { max-width:620px; margin-inline:auto; } .error { color:var(--danger); font-size:.875rem; margin-top:5px; } .alert { border:1px solid #99f6e4; background:#f0fdfa; color:var(--success); padding:12px 16px; border-radius:9px; margin-bottom:22px; }
         .empty { padding:48px 24px; text-align:center; } ul.clean { list-style:none; padding:0; margin:18px 0 0; } ul.clean li { margin:8px 0; color:var(--muted); }
+        .notice { border:1px solid #fbbf24; background:#fffbeb; color:#854d0e; padding:16px 18px; border-radius:10px; margin:20px 0; } .content { max-width:820px; } details { border-bottom:1px solid var(--line); padding:18px 0; } summary { cursor:pointer; font-weight:800; } details p { margin-bottom:0; color:var(--muted); }
         .meter { height:9px; overflow:hidden; border-radius:99px; background:#e2e8f0; margin:10px 0 6px; } .meter > span { display:block; height:100%; background:var(--blue); border-radius:inherit; }
         @media (max-width:760px) { .grid,.grid.two { grid-template-columns:1fr; } .nav-inner,.page-head { align-items:flex-start; flex-direction:column; padding:15px 0; } .nav-links { flex-wrap:wrap; } main { padding-top:30px; } .table-wrap { overflow-x:auto; } }
     </style>
@@ -38,10 +39,12 @@
         <div class="container nav-inner">
             <a class="brand" href="{{ route('home') }}">Student Hosting</a>
             <div class="nav-links">
+                <a href="{{ route('faq') }}">FAQ & policies</a>
                 @auth
                     <a href="{{ route('dashboard') }}">Dashboard</a>
                     <a href="{{ route('projects.index') }}">Projects</a>
                     <a href="{{ route('billing.index') }}">Billing</a>
+                    <a href="{{ route('feedback.index') }}">Feedback</a>
                     @if(auth()->user()->is_admin)<a href="/admin">Admin</a>@endif
                     <form method="POST" action="{{ route('logout') }}">@csrf<button class="button secondary" type="submit">Log out</button></form>
                 @else
